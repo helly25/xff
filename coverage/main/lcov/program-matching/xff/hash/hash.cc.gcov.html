@@ -41,12 +41,12 @@
             <td></td>
             <td class="headerItem">Lines:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
-            <td class="headerCovTableEntry">62</td>
-            <td class="headerCovTableEntry">62</td>
+            <td class="headerCovTableEntry">63</td>
+            <td class="headerCovTableEntry">63</td>
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 13:17:25</td>
+            <td class="headerValue">2026-08-30 16:43:58</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -110,7 +110,7 @@
 <span id="L30"><span class="lineNum">      30</span>                 :             : #include &quot;absl/types/span.h&quot;</span>
 <span id="L31"><span class="lineNum">      31</span>                 :             : #include &quot;mbo/container/limited_map.h&quot;</span>
 <span id="L32"><span class="lineNum">      32</span>                 :             : #include &quot;mbo/digest/digest.h&quot;</span>
-<span id="L33"><span class="lineNum">      33</span>                 :             : #include &quot;mbo/file/artefact.h&quot;</span>
+<span id="L33"><span class="lineNum">      33</span>                 :             : #include &quot;xff/vfs/local_fs.h&quot;</span>
 <span id="L34"><span class="lineNum">      34</span>                 :             : </span>
 <span id="L35"><span class="lineNum">      35</span>                 :             : namespace xff::hash {</span>
 <span id="L36"><span class="lineNum">      36</span>                 :             : namespace {</span>
@@ -245,14 +245,15 @@
 <span id="L165"><span class="lineNum">     165</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 10 times"> + </span>]:<span class="tlaGNC">          11 :   if (!IsAlgorithm(algo)) {</span></span>
 <span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">           1 :     return std::nullopt;  // reject before touching the filesystem</span></span>
 <span id="L167"><span class="lineNum">     167</span>                 :             :   }</span>
-<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">          10 :   const absl::StatusOr&lt;mbo::file::Artefact&gt; artefact = mbo::file::Artefact::Read(path);</span></span>
-<span id="L169"><span class="lineNum">     169</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          10 :   if (!artefact.ok()) {</span></span>
-<span id="L170"><span class="lineNum">     170</span>                 :<span class="tlaGNC">           2 :     return std::nullopt;</span></span>
-<span id="L171"><span class="lineNum">     171</span>                 :             :   }</span>
-<span id="L172"><span class="lineNum">     172</span>                 :<span class="tlaGNC">           8 :   return HashData(algo, artefact-&gt;data, encoding);</span></span>
-<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">          10 : }</span></span>
-<span id="L174"><span class="lineNum">     174</span>                 :             : </span>
-<span id="L175"><span class="lineNum">     175</span>                 :             : }  // namespace xff::hash</span>
+<span id="L168"><span class="lineNum">     168</span>                 :<span class="tlaGNC">          10 :   const vfs::LocalFs fs;</span></span>
+<span id="L169"><span class="lineNum">     169</span>                 :<span class="tlaGNC">          10 :   const absl::StatusOr&lt;std::string&gt; content = fs.ReadContent(path);</span></span>
+<span id="L170"><span class="lineNum">     170</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">          10 :   if (!content.ok()) {</span></span>
+<span id="L171"><span class="lineNum">     171</span>                 :<span class="tlaGNC">           2 :     return std::nullopt;</span></span>
+<span id="L172"><span class="lineNum">     172</span>                 :             :   }</span>
+<span id="L173"><span class="lineNum">     173</span>                 :<span class="tlaGNC">           8 :   return HashData(algo, *content, encoding);</span></span>
+<span id="L174"><span class="lineNum">     174</span>                 :<span class="tlaGNC">          10 : }</span></span>
+<span id="L175"><span class="lineNum">     175</span>                 :             : </span>
+<span id="L176"><span class="lineNum">     176</span>                 :             : }  // namespace xff::hash</span>
         </pre>
               </td>
             </tr>

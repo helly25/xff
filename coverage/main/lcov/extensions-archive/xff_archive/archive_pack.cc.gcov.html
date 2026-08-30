@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 13:17:25</td>
+            <td class="headerValue">2026-08-30 16:43:58</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -567,125 +567,126 @@
 <span id="L485"><span class="lineNum">     485</span>                 :             :   }</span>
 <span id="L486"><span class="lineNum">     486</span>                 :             :   // Streamed in blocks: an archive may hold files far larger than memory. A stream rather than</span>
 <span id="L487"><span class="lineNum">     487</span>                 :             :   // stdio because it closes itself on every path out of here, including the error returns below.</span>
-<span id="L488"><span class="lineNum">     488</span>                 :<span class="tlaGNC">         126 :   std::ifstream file(source, std::ios::binary);</span></span>
-<span id="L489"><span class="lineNum">     489</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 126 times"> + </span>]:<span class="tlaGNC">         126 :   if (!file.is_open()) {</span></span>
-<span id="L490"><span class="lineNum">     490</span>                 :<span class="tlaUNC">           0 :     return absl::NotFoundError(absl::StrCat(&quot;cannot open '&quot;, entry.source, &quot;'&quot;));</span></span>
-<span id="L491"><span class="lineNum">     491</span>                 :             :   }</span>
-<span id="L492"><span class="lineNum">     492</span>                 :<span class="tlaGNC">         126 :   std::array&lt;char, kBlockSize&gt; buffer{};</span></span>
-<span id="L493"><span class="lineNum">     493</span>   [<span class="tlaGBC" title="branch 0 was taken 252 times"> + </span><span class="tlaGBC" title="branch 1 was taken 63 times"> + </span><span class="tlaGBC" title="branch 2 was taken 126 times"> + </span><span class="tlaGBC" title="branch 3 was taken 126 times"> + </span> :<span class="tlaGNC">         756 :   while (file.read(buffer.data(), static_cast&lt;std::streamsize&gt;(buffer.size())) || file.gcount() &gt; 0) {</span></span>
+<span id="L488"><span class="lineNum">     488</span>                 :             :   // XFF_HOST_IO: archive pack consumes the explicitly selected host input file.</span>
+<span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaGNC">         126 :   std::ifstream file(source, std::ios::binary);</span></span>
+<span id="L490"><span class="lineNum">     490</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 126 times"> + </span>]:<span class="tlaGNC">         126 :   if (!file.is_open()) {</span></span>
+<span id="L491"><span class="lineNum">     491</span>                 :<span class="tlaUNC">           0 :     return absl::NotFoundError(absl::StrCat(&quot;cannot open '&quot;, entry.source, &quot;'&quot;));</span></span>
+<span id="L492"><span class="lineNum">     492</span>                 :             :   }</span>
+<span id="L493"><span class="lineNum">     493</span>                 :<span class="tlaGNC">         126 :   std::array&lt;char, kBlockSize&gt; buffer{};</span></span>
+<span id="L494"><span class="lineNum">     494</span>   [<span class="tlaGBC" title="branch 0 was taken 252 times"> + </span><span class="tlaGBC" title="branch 1 was taken 63 times"> + </span><span class="tlaGBC" title="branch 2 was taken 126 times"> + </span><span class="tlaGBC" title="branch 3 was taken 126 times"> + </span> :<span class="tlaGNC">         756 :   while (file.read(buffer.data(), static_cast&lt;std::streamsize&gt;(buffer.size())) || file.gcount() &gt; 0) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 189 times"> + </span><span class="tlaGBC" title="branch 5 was taken 126 times"> + </span>]
-<span id="L494"><span class="lineNum">     494</span>                 :<span class="tlaGNC">         189 :     const std::streamsize read = file.gcount();</span></span>
-<span id="L495"><span class="lineNum">     495</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 189 times"> + </span>]:<span class="tlaGNC">         189 :     if (read &lt;= 0) {</span></span>
-<span id="L496"><span class="lineNum">     496</span>                 :<span class="tlaUNC">           0 :       break;</span></span>
-<span id="L497"><span class="lineNum">     497</span>                 :             :     }</span>
-<span id="L498"><span class="lineNum">     498</span>                 :<span class="tlaGNC">         378 :     if (::archive_write_data(writer, buffer.data(), static_cast&lt;std::size_t&gt;(read)) &lt; 0) {  // LCOV_EXCL_BR_LINE</span></span>
-<span id="L499"><span class="lineNum">     499</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(absl::StrCat(&quot;cannot write '&quot;, entry.name, &quot;': &quot;, ::archive_error_string(writer)));</span></span>
-<span id="L500"><span class="lineNum">     500</span>                 :             :     }</span>
-<span id="L501"><span class="lineNum">     501</span>                 :             :   }</span>
-<span id="L502"><span class="lineNum">     502</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 126 times"> + </span>]:<span class="tlaGNC">         126 :   if (file.bad()) {</span></span>
-<span id="L503"><span class="lineNum">     503</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(absl::StrCat(&quot;read failed part way through '&quot;, entry.source, &quot;'&quot;));</span></span>
-<span id="L504"><span class="lineNum">     504</span>                 :             :   }</span>
-<span id="L505"><span class="lineNum">     505</span>                 :<span class="tlaGNC">         126 :   return absl::OkStatus();</span></span>
-<span id="L506"><span class="lineNum">     506</span>                 :<span class="tlaGNC">         134 : }</span></span>
-<span id="L507"><span class="lineNum">     507</span>                 :             : </span>
-<span id="L508"><span class="lineNum">     508</span>                 :             : }  // namespace</span>
-<span id="L509"><span class="lineNum">     509</span>                 :             : </span>
-<span id="L510"><span class="lineNum">     510</span>                 :<span class="tlaGNC">          35 : std::string FormatFromName(std::string_view path) {</span></span>
-<span id="L511"><span class="lineNum">     511</span>                 :<span class="tlaGNC">          35 :   const OptionalFormatSuffix found = FormatEntryFor(path);</span></span>
-<span id="L512"><span class="lineNum">     512</span>   [<span class="tlaGBC" title="branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 33 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">         101 :   return found.has_value() ? std::string(found-&gt;name) : std::string();</span></span>
-<span id="L513"><span class="lineNum">     513</span>                 :             : }</span>
-<span id="L514"><span class="lineNum">     514</span>                 :             : </span>
-<span id="L515"><span class="lineNum">     515</span>                 :<span class="tlaGNC">         298 : std::vector&lt;PackOptionDoc&gt; PackOptionDocs() {</span></span>
-<span id="L516"><span class="lineNum">     516</span>                 :<span class="tlaGNC">         298 :   std::vector&lt;PackOptionDoc&gt; docs;</span></span>
-<span id="L517"><span class="lineNum">     517</span>                 :<span class="tlaGNC">         298 :   docs.reserve(kPackOptions.size());</span></span>
-<span id="L518"><span class="lineNum">     518</span>         [<span class="tlaGBC" title="branch 0 was taken 1490 times"> + </span><span class="tlaGBC" title="branch 1 was taken 298 times"> + </span>]:<span class="tlaGNC">        1788 :   for (const PackOptionSpec&amp; spec : kPackOptions) {</span></span>
-<span id="L519"><span class="lineNum">     519</span>                 :<span class="tlaGNC">        1490 :     std::string syntax;</span></span>
-<span id="L520"><span class="lineNum">     520</span>   [<span class="tlaGBC" title="branch 0 was taken 596 times"> + </span><span class="tlaGBC" title="branch 1 was taken 298 times"> + </span><span class="tlaGBC" title="branch 2 was taken 596 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1490 :     switch (spec.kind) {</span></span>
-<span id="L521"><span class="lineNum">     521</span>                 :<span class="tlaGNC">         596 :       case PackValue::kBool: syntax = &quot;yes|no&quot;; break;</span></span>
-<span id="L522"><span class="lineNum">     522</span>                 :<span class="tlaGNC">         298 :       case PackValue::kEnum: syntax = absl::StrJoin(spec.values, &quot;|&quot;); break;</span></span>
-<span id="L523"><span class="lineNum">     523</span>                 :<span class="tlaGNC">         596 :       case PackValue::kInt: syntax = &quot;N&quot;; break;</span></span>
-<span id="L524"><span class="lineNum">     524</span>                 :             :     }</span>
-<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">        2980 :     docs.push_back(</span></span>
-<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">        1490 :         {.name = std::string(spec.name),</span></span>
-<span id="L527"><span class="lineNum">     527</span>                 :<span class="tlaGNC">        1490 :          .value_syntax = std::move(syntax),</span></span>
-<span id="L528"><span class="lineNum">     528</span>                 :             :          .formats = spec.formats,</span>
-<span id="L529"><span class="lineNum">     529</span>                 :<span class="tlaGNC">        2980 :          .detail = std::string(spec.detail)});</span></span>
-<span id="L530"><span class="lineNum">     530</span>                 :<span class="tlaGNC">        1490 :   }</span></span>
-<span id="L531"><span class="lineNum">     531</span>                 :<span class="tlaGNC">         298 :   return docs;</span></span>
-<span id="L532"><span class="lineNum">     532</span>                 :             : }</span>
-<span id="L533"><span class="lineNum">     533</span>                 :             : </span>
-<span id="L534"><span class="lineNum">     534</span>                 :<span class="tlaGNC">         302 : std::vector&lt;std::string&gt; PackFormats() {</span></span>
-<span id="L535"><span class="lineNum">     535</span>                 :<span class="tlaGNC">         302 :   std::vector&lt;std::string&gt; names;</span></span>
-<span id="L536"><span class="lineNum">     536</span>                 :<span class="tlaGNC">         302 :   names.reserve(kFormats.size());</span></span>
-<span id="L537"><span class="lineNum">     537</span>         [<span class="tlaGBC" title="branch 0 was taken 5436 times"> + </span><span class="tlaGBC" title="branch 1 was taken 302 times"> + </span>]:<span class="tlaGNC">        5738 :   for (const FormatSuffix&amp; format : kFormats) {</span></span>
-<span id="L538"><span class="lineNum">     538</span>                 :<span class="tlaGNC">        5436 :     names.emplace_back(format.name);</span></span>
-<span id="L539"><span class="lineNum">     539</span>                 :             :   }</span>
-<span id="L540"><span class="lineNum">     540</span>                 :<span class="tlaGNC">         302 :   return names;</span></span>
-<span id="L541"><span class="lineNum">     541</span>                 :             : }</span>
-<span id="L542"><span class="lineNum">     542</span>                 :             : </span>
-<span id="L543"><span class="lineNum">     543</span>                 :<span class="tlaGNC">          92 : absl::Status PackFiles(std::string_view path, const std::vector&lt;PackEntry&gt;&amp; entries, const PackSettings&amp; options) {</span></span>
-<span id="L544"><span class="lineNum">     544</span>                 :<span class="tlaGNC">          92 :   const OptionalFormatSuffix format = FormatEntryFor(path);</span></span>
-<span id="L545"><span class="lineNum">     545</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 89 times"> + </span>]:<span class="tlaGNC">          92 :   if (!format.has_value()) {</span></span>
-<span id="L546"><span class="lineNum">     546</span>                 :             :     return absl::InvalidArgumentError(</span>
-<span id="L547"><span class="lineNum">     547</span>                 :<span class="tlaGNC">           6 :         absl::StrCat(</span></span>
-<span id="L548"><span class="lineNum">     548</span>                 :             :             &quot;cannot tell the archive format from '&quot;, path, &quot;'; expected one ending in .&quot;,</span>
-<span id="L549"><span class="lineNum">     549</span>                 :<span class="tlaGNC">           9 :             absl::StrJoin(PackFormats(), &quot;, .&quot;)));</span></span>
-<span id="L550"><span class="lineNum">     550</span>                 :             :   }</span>
-<span id="L551"><span class="lineNum">     551</span>                 :             :   // Written beside the target and renamed over it, so a failure part way leaves no half archive -</span>
-<span id="L552"><span class="lineNum">     552</span>                 :             :   // and an existing file survives an attempt that fails. Same contract as the member rewrite.</span>
-<span id="L553"><span class="lineNum">     553</span>                 :<span class="tlaGNC">          89 :   const stdfs::path target(path);</span></span>
-<span id="L554"><span class="lineNum">     554</span>                 :<span class="tlaGNC">          89 :   const stdfs::path temporary = stdfs::path(target).concat(&quot;.xff-pack&quot;);</span></span>
-<span id="L555"><span class="lineNum">     555</span>                 :             :   {</span>
-<span id="L556"><span class="lineNum">     556</span>                 :<span class="tlaGNC">          89 :     const WritePtr writer{::archive_write_new()};</span></span>
-<span id="L557"><span class="lineNum">     557</span>                 :<span class="tlaGNC">          89 :     if (writer == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.</span></span>
-<span id="L558"><span class="lineNum">     558</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(&quot;out of memory creating the archive writer&quot;);</span></span>
-<span id="L559"><span class="lineNum">     559</span>                 :             :     }</span>
-<span id="L560"><span class="lineNum">     560</span>                 :<span class="tlaGNC">          89 :     if (::archive_write_set_format(writer.get(), format-&gt;format) != ARCHIVE_OK</span></span>
-<span id="L561"><span class="lineNum">     561</span>   [<span class="tlaGBC" title="branch 0 was taken 89 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 56 times"> + </span><span class="tlaGBC" title="branch 3 was taken 33 times"> + </span> :<span class="tlaGNC">         145 :         || (format-&gt;filter != ARCHIVE_FILTER_NONE</span></span>
+<span id="L495"><span class="lineNum">     495</span>                 :<span class="tlaGNC">         189 :     const std::streamsize read = file.gcount();</span></span>
+<span id="L496"><span class="lineNum">     496</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 189 times"> + </span>]:<span class="tlaGNC">         189 :     if (read &lt;= 0) {</span></span>
+<span id="L497"><span class="lineNum">     497</span>                 :<span class="tlaUNC">           0 :       break;</span></span>
+<span id="L498"><span class="lineNum">     498</span>                 :             :     }</span>
+<span id="L499"><span class="lineNum">     499</span>                 :<span class="tlaGNC">         378 :     if (::archive_write_data(writer, buffer.data(), static_cast&lt;std::size_t&gt;(read)) &lt; 0) {  // LCOV_EXCL_BR_LINE</span></span>
+<span id="L500"><span class="lineNum">     500</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(absl::StrCat(&quot;cannot write '&quot;, entry.name, &quot;': &quot;, ::archive_error_string(writer)));</span></span>
+<span id="L501"><span class="lineNum">     501</span>                 :             :     }</span>
+<span id="L502"><span class="lineNum">     502</span>                 :             :   }</span>
+<span id="L503"><span class="lineNum">     503</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 126 times"> + </span>]:<span class="tlaGNC">         126 :   if (file.bad()) {</span></span>
+<span id="L504"><span class="lineNum">     504</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(absl::StrCat(&quot;read failed part way through '&quot;, entry.source, &quot;'&quot;));</span></span>
+<span id="L505"><span class="lineNum">     505</span>                 :             :   }</span>
+<span id="L506"><span class="lineNum">     506</span>                 :<span class="tlaGNC">         126 :   return absl::OkStatus();</span></span>
+<span id="L507"><span class="lineNum">     507</span>                 :<span class="tlaGNC">         134 : }</span></span>
+<span id="L508"><span class="lineNum">     508</span>                 :             : </span>
+<span id="L509"><span class="lineNum">     509</span>                 :             : }  // namespace</span>
+<span id="L510"><span class="lineNum">     510</span>                 :             : </span>
+<span id="L511"><span class="lineNum">     511</span>                 :<span class="tlaGNC">          35 : std::string FormatFromName(std::string_view path) {</span></span>
+<span id="L512"><span class="lineNum">     512</span>                 :<span class="tlaGNC">          35 :   const OptionalFormatSuffix found = FormatEntryFor(path);</span></span>
+<span id="L513"><span class="lineNum">     513</span>   [<span class="tlaGBC" title="branch 0 was taken 33 times"> + </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 33 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">         101 :   return found.has_value() ? std::string(found-&gt;name) : std::string();</span></span>
+<span id="L514"><span class="lineNum">     514</span>                 :             : }</span>
+<span id="L515"><span class="lineNum">     515</span>                 :             : </span>
+<span id="L516"><span class="lineNum">     516</span>                 :<span class="tlaGNC">         298 : std::vector&lt;PackOptionDoc&gt; PackOptionDocs() {</span></span>
+<span id="L517"><span class="lineNum">     517</span>                 :<span class="tlaGNC">         298 :   std::vector&lt;PackOptionDoc&gt; docs;</span></span>
+<span id="L518"><span class="lineNum">     518</span>                 :<span class="tlaGNC">         298 :   docs.reserve(kPackOptions.size());</span></span>
+<span id="L519"><span class="lineNum">     519</span>         [<span class="tlaGBC" title="branch 0 was taken 1490 times"> + </span><span class="tlaGBC" title="branch 1 was taken 298 times"> + </span>]:<span class="tlaGNC">        1788 :   for (const PackOptionSpec&amp; spec : kPackOptions) {</span></span>
+<span id="L520"><span class="lineNum">     520</span>                 :<span class="tlaGNC">        1490 :     std::string syntax;</span></span>
+<span id="L521"><span class="lineNum">     521</span>   [<span class="tlaGBC" title="branch 0 was taken 596 times"> + </span><span class="tlaGBC" title="branch 1 was taken 298 times"> + </span><span class="tlaGBC" title="branch 2 was taken 596 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">        1490 :     switch (spec.kind) {</span></span>
+<span id="L522"><span class="lineNum">     522</span>                 :<span class="tlaGNC">         596 :       case PackValue::kBool: syntax = &quot;yes|no&quot;; break;</span></span>
+<span id="L523"><span class="lineNum">     523</span>                 :<span class="tlaGNC">         298 :       case PackValue::kEnum: syntax = absl::StrJoin(spec.values, &quot;|&quot;); break;</span></span>
+<span id="L524"><span class="lineNum">     524</span>                 :<span class="tlaGNC">         596 :       case PackValue::kInt: syntax = &quot;N&quot;; break;</span></span>
+<span id="L525"><span class="lineNum">     525</span>                 :             :     }</span>
+<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">        2980 :     docs.push_back(</span></span>
+<span id="L527"><span class="lineNum">     527</span>                 :<span class="tlaGNC">        1490 :         {.name = std::string(spec.name),</span></span>
+<span id="L528"><span class="lineNum">     528</span>                 :<span class="tlaGNC">        1490 :          .value_syntax = std::move(syntax),</span></span>
+<span id="L529"><span class="lineNum">     529</span>                 :             :          .formats = spec.formats,</span>
+<span id="L530"><span class="lineNum">     530</span>                 :<span class="tlaGNC">        2980 :          .detail = std::string(spec.detail)});</span></span>
+<span id="L531"><span class="lineNum">     531</span>                 :<span class="tlaGNC">        1490 :   }</span></span>
+<span id="L532"><span class="lineNum">     532</span>                 :<span class="tlaGNC">         298 :   return docs;</span></span>
+<span id="L533"><span class="lineNum">     533</span>                 :             : }</span>
+<span id="L534"><span class="lineNum">     534</span>                 :             : </span>
+<span id="L535"><span class="lineNum">     535</span>                 :<span class="tlaGNC">         302 : std::vector&lt;std::string&gt; PackFormats() {</span></span>
+<span id="L536"><span class="lineNum">     536</span>                 :<span class="tlaGNC">         302 :   std::vector&lt;std::string&gt; names;</span></span>
+<span id="L537"><span class="lineNum">     537</span>                 :<span class="tlaGNC">         302 :   names.reserve(kFormats.size());</span></span>
+<span id="L538"><span class="lineNum">     538</span>         [<span class="tlaGBC" title="branch 0 was taken 5436 times"> + </span><span class="tlaGBC" title="branch 1 was taken 302 times"> + </span>]:<span class="tlaGNC">        5738 :   for (const FormatSuffix&amp; format : kFormats) {</span></span>
+<span id="L539"><span class="lineNum">     539</span>                 :<span class="tlaGNC">        5436 :     names.emplace_back(format.name);</span></span>
+<span id="L540"><span class="lineNum">     540</span>                 :             :   }</span>
+<span id="L541"><span class="lineNum">     541</span>                 :<span class="tlaGNC">         302 :   return names;</span></span>
+<span id="L542"><span class="lineNum">     542</span>                 :             : }</span>
+<span id="L543"><span class="lineNum">     543</span>                 :             : </span>
+<span id="L544"><span class="lineNum">     544</span>                 :<span class="tlaGNC">          92 : absl::Status PackFiles(std::string_view path, const std::vector&lt;PackEntry&gt;&amp; entries, const PackSettings&amp; options) {</span></span>
+<span id="L545"><span class="lineNum">     545</span>                 :<span class="tlaGNC">          92 :   const OptionalFormatSuffix format = FormatEntryFor(path);</span></span>
+<span id="L546"><span class="lineNum">     546</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 89 times"> + </span>]:<span class="tlaGNC">          92 :   if (!format.has_value()) {</span></span>
+<span id="L547"><span class="lineNum">     547</span>                 :             :     return absl::InvalidArgumentError(</span>
+<span id="L548"><span class="lineNum">     548</span>                 :<span class="tlaGNC">           6 :         absl::StrCat(</span></span>
+<span id="L549"><span class="lineNum">     549</span>                 :             :             &quot;cannot tell the archive format from '&quot;, path, &quot;'; expected one ending in .&quot;,</span>
+<span id="L550"><span class="lineNum">     550</span>                 :<span class="tlaGNC">           9 :             absl::StrJoin(PackFormats(), &quot;, .&quot;)));</span></span>
+<span id="L551"><span class="lineNum">     551</span>                 :             :   }</span>
+<span id="L552"><span class="lineNum">     552</span>                 :             :   // Written beside the target and renamed over it, so a failure part way leaves no half archive -</span>
+<span id="L553"><span class="lineNum">     553</span>                 :             :   // and an existing file survives an attempt that fails. Same contract as the member rewrite.</span>
+<span id="L554"><span class="lineNum">     554</span>                 :<span class="tlaGNC">          89 :   const stdfs::path target(path);</span></span>
+<span id="L555"><span class="lineNum">     555</span>                 :<span class="tlaGNC">          89 :   const stdfs::path temporary = stdfs::path(target).concat(&quot;.xff-pack&quot;);</span></span>
+<span id="L556"><span class="lineNum">     556</span>                 :             :   {</span>
+<span id="L557"><span class="lineNum">     557</span>                 :<span class="tlaGNC">          89 :     const WritePtr writer{::archive_write_new()};</span></span>
+<span id="L558"><span class="lineNum">     558</span>                 :<span class="tlaGNC">          89 :     if (writer == nullptr) {  // LCOV_EXCL_BR_LINE: libarchive allocation failure injection.</span></span>
+<span id="L559"><span class="lineNum">     559</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(&quot;out of memory creating the archive writer&quot;);</span></span>
+<span id="L560"><span class="lineNum">     560</span>                 :             :     }</span>
+<span id="L561"><span class="lineNum">     561</span>                 :<span class="tlaGNC">          89 :     if (::archive_write_set_format(writer.get(), format-&gt;format) != ARCHIVE_OK</span></span>
+<span id="L562"><span class="lineNum">     562</span>   [<span class="tlaGBC" title="branch 0 was taken 89 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 56 times"> + </span><span class="tlaGBC" title="branch 3 was taken 33 times"> + </span> :<span class="tlaGNC">         145 :         || (format-&gt;filter != ARCHIVE_FILTER_NONE</span></span>
 <span class="lineNum">        </span>          <span class="tlaUNC" title="branch 4 was not taken"> - </span><span class="tlaGBC" title="branch 5 was taken 89 times"> + </span>]
-<span id="L562"><span class="lineNum">     562</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 56 times"> + </span>]:<span class="tlaGNC">          56 :             &amp;&amp; ::archive_write_add_filter(writer.get(), format-&gt;filter) != ARCHIVE_OK)) {</span></span>
-<span id="L563"><span class="lineNum">     563</span>                 :             :       return absl::InvalidArgumentError(</span>
-<span id="L564"><span class="lineNum">     564</span>                 :<span class="tlaUNC">           0 :           absl::StrCat(&quot;this build cannot write &quot;, format-&gt;name, &quot;: &quot;, ::archive_error_string(writer.get())));</span></span>
-<span id="L565"><span class="lineNum">     565</span>                 :             :     }</span>
-<span id="L566"><span class="lineNum">     566</span>                 :             :     // Options are translated and applied before anything is written, so a rejected one costs no file.</span>
-<span id="L567"><span class="lineNum">     567</span>                 :             :     // Last value for a name wins, which is what lets a caller append rather than rewrite its list.</span>
-<span id="L568"><span class="lineNum">     568</span>                 :<span class="tlaGNC">          89 :     absl::btree_map&lt;std::string, std::string&gt; resolved;</span></span>
-<span id="L569"><span class="lineNum">     569</span>         [<span class="tlaGBC" title="branch 0 was taken 63 times"> + </span><span class="tlaGBC" title="branch 1 was taken 89 times"> + </span>]:<span class="tlaGNC">         152 :     for (const PackSetting&amp; option : options.options) {</span></span>
-<span id="L570"><span class="lineNum">     570</span>                 :<span class="tlaGNC">          63 :       resolved[option.name] = option.value;</span></span>
-<span id="L571"><span class="lineNum">     571</span>                 :             :     }</span>
-<span id="L572"><span class="lineNum">     572</span>         [<span class="tlaGBC" title="branch 0 was taken 59 times"> + </span><span class="tlaGBC" title="branch 1 was taken 74 times"> + </span>]:<span class="tlaGNC">         133 :     for (const auto&amp; [name, value] : resolved) {</span></span>
-<span id="L573"><span class="lineNum">     573</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="branch 1 was taken 44 times"> + </span>]:<span class="tlaGNC">          59 :       MBO_ASSIGN_OR_RETURN(</span></span>
-<span id="L574"><span class="lineNum">     574</span>                 :             :           const std::string setting, TranslateOption(PackSetting{.name = name, .value = value}, *format));</span>
-<span id="L575"><span class="lineNum">     575</span>                 :<span class="tlaGNC">          44 :       if (::archive_write_set_options(writer.get(), setting.c_str()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
-<span id="L576"><span class="lineNum">     576</span>                 :             :         return absl::InvalidArgumentError(</span>
-<span id="L577"><span class="lineNum">     577</span>                 :<span class="tlaUNC">           0 :             absl::StrCat(</span></span>
-<span id="L578"><span class="lineNum">     578</span>                 :<span class="tlaUNC">           0 :                 &quot;this build cannot set '&quot;, name, &quot;=&quot;, value, &quot;' on &quot;, format-&gt;name, &quot;: &quot;,</span></span>
-<span id="L579"><span class="lineNum">     579</span>                 :<span class="tlaUNC">           0 :                 ::archive_error_string(writer.get())));</span></span>
-<span id="L580"><span class="lineNum">     580</span>                 :             :       }</span>
-<span id="L581"><span class="lineNum">     581</span>   [<span class="tlaGBC" title="branch 0 was taken 44 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 44 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span>]:<span class="tlaGNC">          59 :     }</span></span>
-<span id="L582"><span class="lineNum">     582</span>                 :<span class="tlaGNC">          74 :     if (::archive_write_open_filename(writer.get(), temporary.string().c_str()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
-<span id="L583"><span class="lineNum">     583</span>                 :             :       return absl::UnavailableError(</span>
-<span id="L584"><span class="lineNum">     584</span>                 :<span class="tlaUNC">           0 :           absl::StrCat(&quot;cannot create '&quot;, temporary.string(), &quot;': &quot;, ::archive_error_string(writer.get())));</span></span>
-<span id="L585"><span class="lineNum">     585</span>                 :             :     }</span>
-<span id="L586"><span class="lineNum">     586</span>         [<span class="tlaGBC" title="branch 0 was taken 134 times"> + </span><span class="tlaGBC" title="branch 1 was taken 71 times"> + </span>]:<span class="tlaGNC">         205 :     for (const PackEntry&amp; entry : entries) {</span></span>
-<span id="L587"><span class="lineNum">     587</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 131 times"> + </span>]:<span class="tlaGNC">         134 :       if (const absl::Status status = WriteOne(*writer, entry); !status.ok()) {</span></span>
-<span id="L588"><span class="lineNum">     588</span>                 :<span class="tlaGNC">           3 :         std::error_code ignored;</span></span>
-<span id="L589"><span class="lineNum">     589</span>                 :<span class="tlaGNC">           3 :         stdfs::remove(temporary, ignored);</span></span>
-<span id="L590"><span class="lineNum">     590</span>                 :<span class="tlaGNC">           3 :         return status;</span></span>
-<span id="L591"><span class="lineNum">     591</span>         [<span class="tlaGBC" title="branch 0 was taken 131 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">         134 :       }</span></span>
-<span id="L592"><span class="lineNum">     592</span>                 :             :     }</span>
-<span id="L593"><span class="lineNum">     593</span>   [<span class="tlaGBC" title="branch 0 was taken 71 times"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="branch 2 was taken 71 times"> + </span><span class="tlaGBC" title="branch 3 was taken 18 times"> + </span>]:<span class="tlaGNC">         107 :   }  // the deleter closes the writer, which is when zip writes its directory</span></span>
-<span id="L594"><span class="lineNum">     594</span>                 :<span class="tlaGNC">          71 :   std::error_code error;</span></span>
-<span id="L595"><span class="lineNum">     595</span>                 :<span class="tlaGNC">          71 :   stdfs::rename(temporary, target, error);</span></span>
-<span id="L596"><span class="lineNum">     596</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 71 times"> + </span>]:<span class="tlaGNC">          71 :   if (error) {</span></span>
-<span id="L597"><span class="lineNum">     597</span>                 :<span class="tlaUNC">           0 :     std::error_code ignored;</span></span>
-<span id="L598"><span class="lineNum">     598</span>                 :<span class="tlaUNC">           0 :     stdfs::remove(temporary, ignored);</span></span>
-<span id="L599"><span class="lineNum">     599</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(absl::StrCat(&quot;cannot place '&quot;, path, &quot;': &quot;, error.message()));</span></span>
-<span id="L600"><span class="lineNum">     600</span>                 :             :   }</span>
-<span id="L601"><span class="lineNum">     601</span>                 :<span class="tlaGNC">          71 :   return absl::OkStatus();</span></span>
-<span id="L602"><span class="lineNum">     602</span>                 :<span class="tlaGNC">          89 : }</span></span>
-<span id="L603"><span class="lineNum">     603</span>                 :             : </span>
-<span id="L604"><span class="lineNum">     604</span>                 :             : }  // namespace xff::archive</span>
+<span id="L563"><span class="lineNum">     563</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 56 times"> + </span>]:<span class="tlaGNC">          56 :             &amp;&amp; ::archive_write_add_filter(writer.get(), format-&gt;filter) != ARCHIVE_OK)) {</span></span>
+<span id="L564"><span class="lineNum">     564</span>                 :             :       return absl::InvalidArgumentError(</span>
+<span id="L565"><span class="lineNum">     565</span>                 :<span class="tlaUNC">           0 :           absl::StrCat(&quot;this build cannot write &quot;, format-&gt;name, &quot;: &quot;, ::archive_error_string(writer.get())));</span></span>
+<span id="L566"><span class="lineNum">     566</span>                 :             :     }</span>
+<span id="L567"><span class="lineNum">     567</span>                 :             :     // Options are translated and applied before anything is written, so a rejected one costs no file.</span>
+<span id="L568"><span class="lineNum">     568</span>                 :             :     // Last value for a name wins, which is what lets a caller append rather than rewrite its list.</span>
+<span id="L569"><span class="lineNum">     569</span>                 :<span class="tlaGNC">          89 :     absl::btree_map&lt;std::string, std::string&gt; resolved;</span></span>
+<span id="L570"><span class="lineNum">     570</span>         [<span class="tlaGBC" title="branch 0 was taken 63 times"> + </span><span class="tlaGBC" title="branch 1 was taken 89 times"> + </span>]:<span class="tlaGNC">         152 :     for (const PackSetting&amp; option : options.options) {</span></span>
+<span id="L571"><span class="lineNum">     571</span>                 :<span class="tlaGNC">          63 :       resolved[option.name] = option.value;</span></span>
+<span id="L572"><span class="lineNum">     572</span>                 :             :     }</span>
+<span id="L573"><span class="lineNum">     573</span>         [<span class="tlaGBC" title="branch 0 was taken 59 times"> + </span><span class="tlaGBC" title="branch 1 was taken 74 times"> + </span>]:<span class="tlaGNC">         133 :     for (const auto&amp; [name, value] : resolved) {</span></span>
+<span id="L574"><span class="lineNum">     574</span>         [<span class="tlaGBC" title="branch 0 was taken 15 times"> + </span><span class="tlaGBC" title="branch 1 was taken 44 times"> + </span>]:<span class="tlaGNC">          59 :       MBO_ASSIGN_OR_RETURN(</span></span>
+<span id="L575"><span class="lineNum">     575</span>                 :             :           const std::string setting, TranslateOption(PackSetting{.name = name, .value = value}, *format));</span>
+<span id="L576"><span class="lineNum">     576</span>                 :<span class="tlaGNC">          44 :       if (::archive_write_set_options(writer.get(), setting.c_str()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
+<span id="L577"><span class="lineNum">     577</span>                 :             :         return absl::InvalidArgumentError(</span>
+<span id="L578"><span class="lineNum">     578</span>                 :<span class="tlaUNC">           0 :             absl::StrCat(</span></span>
+<span id="L579"><span class="lineNum">     579</span>                 :<span class="tlaUNC">           0 :                 &quot;this build cannot set '&quot;, name, &quot;=&quot;, value, &quot;' on &quot;, format-&gt;name, &quot;: &quot;,</span></span>
+<span id="L580"><span class="lineNum">     580</span>                 :<span class="tlaUNC">           0 :                 ::archive_error_string(writer.get())));</span></span>
+<span id="L581"><span class="lineNum">     581</span>                 :             :       }</span>
+<span id="L582"><span class="lineNum">     582</span>   [<span class="tlaGBC" title="branch 0 was taken 44 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 44 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span>]:<span class="tlaGNC">          59 :     }</span></span>
+<span id="L583"><span class="lineNum">     583</span>                 :<span class="tlaGNC">          74 :     if (::archive_write_open_filename(writer.get(), temporary.string().c_str()) != ARCHIVE_OK) {  // LCOV_EXCL_BR_LINE</span></span>
+<span id="L584"><span class="lineNum">     584</span>                 :             :       return absl::UnavailableError(</span>
+<span id="L585"><span class="lineNum">     585</span>                 :<span class="tlaUNC">           0 :           absl::StrCat(&quot;cannot create '&quot;, temporary.string(), &quot;': &quot;, ::archive_error_string(writer.get())));</span></span>
+<span id="L586"><span class="lineNum">     586</span>                 :             :     }</span>
+<span id="L587"><span class="lineNum">     587</span>         [<span class="tlaGBC" title="branch 0 was taken 134 times"> + </span><span class="tlaGBC" title="branch 1 was taken 71 times"> + </span>]:<span class="tlaGNC">         205 :     for (const PackEntry&amp; entry : entries) {</span></span>
+<span id="L588"><span class="lineNum">     588</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 131 times"> + </span>]:<span class="tlaGNC">         134 :       if (const absl::Status status = WriteOne(*writer, entry); !status.ok()) {</span></span>
+<span id="L589"><span class="lineNum">     589</span>                 :<span class="tlaGNC">           3 :         std::error_code ignored;</span></span>
+<span id="L590"><span class="lineNum">     590</span>                 :<span class="tlaGNC">           3 :         stdfs::remove(temporary, ignored);</span></span>
+<span id="L591"><span class="lineNum">     591</span>                 :<span class="tlaGNC">           3 :         return status;</span></span>
+<span id="L592"><span class="lineNum">     592</span>         [<span class="tlaGBC" title="branch 0 was taken 131 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">         134 :       }</span></span>
+<span id="L593"><span class="lineNum">     593</span>                 :             :     }</span>
+<span id="L594"><span class="lineNum">     594</span>   [<span class="tlaGBC" title="branch 0 was taken 71 times"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="branch 2 was taken 71 times"> + </span><span class="tlaGBC" title="branch 3 was taken 18 times"> + </span>]:<span class="tlaGNC">         107 :   }  // the deleter closes the writer, which is when zip writes its directory</span></span>
+<span id="L595"><span class="lineNum">     595</span>                 :<span class="tlaGNC">          71 :   std::error_code error;</span></span>
+<span id="L596"><span class="lineNum">     596</span>                 :<span class="tlaGNC">          71 :   stdfs::rename(temporary, target, error);</span></span>
+<span id="L597"><span class="lineNum">     597</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 71 times"> + </span>]:<span class="tlaGNC">          71 :   if (error) {</span></span>
+<span id="L598"><span class="lineNum">     598</span>                 :<span class="tlaUNC">           0 :     std::error_code ignored;</span></span>
+<span id="L599"><span class="lineNum">     599</span>                 :<span class="tlaUNC">           0 :     stdfs::remove(temporary, ignored);</span></span>
+<span id="L600"><span class="lineNum">     600</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(absl::StrCat(&quot;cannot place '&quot;, path, &quot;': &quot;, error.message()));</span></span>
+<span id="L601"><span class="lineNum">     601</span>                 :             :   }</span>
+<span id="L602"><span class="lineNum">     602</span>                 :<span class="tlaGNC">          71 :   return absl::OkStatus();</span></span>
+<span id="L603"><span class="lineNum">     603</span>                 :<span class="tlaGNC">          89 : }</span></span>
+<span id="L604"><span class="lineNum">     604</span>                 :             : </span>
+<span id="L605"><span class="lineNum">     605</span>                 :             : }  // namespace xff::archive</span>
         </pre>
               </td>
             </tr>

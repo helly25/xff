@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 13:17:25</td>
+            <td class="headerValue">2026-08-30 16:43:58</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -534,200 +534,201 @@
 <span id="L450"><span class="lineNum">     450</span>                 :             : // Reads `length` bytes at `offset` from `path`. Used for both the stub-plus-manifest prefix and a</span>
 <span id="L451"><span class="lineNum">     451</span>                 :             : // single member's byte range, so neither entry point ever reads a whole container.</span>
 <span id="L452"><span class="lineNum">     452</span>                 :<span class="tlaGNC">          70 : absl::StatusOr&lt;std::string&gt; ReadFileRange(std::string_view path, std::uint64_t offset, std::size_t length) {</span></span>
-<span id="L453"><span class="lineNum">     453</span>                 :<span class="tlaGNC">          70 :   std::ifstream file(std::string(path), std::ios::binary);</span></span>
-<span id="L454"><span class="lineNum">     454</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 69 times"> + </span>]:<span class="tlaGNC">          70 :   if (!file.is_open()) {</span></span>
-<span id="L455"><span class="lineNum">     455</span>                 :<span class="tlaGNC">           1 :     return absl::InvalidArgumentError(absl::StrCat(&quot;cannot open &quot;, path));</span></span>
-<span id="L456"><span class="lineNum">     456</span>                 :             :   }</span>
-<span id="L457"><span class="lineNum">     457</span>                 :<span class="tlaGNC">          69 :   file.seekg(static_cast&lt;std::streamoff&gt;(offset));</span></span>
-<span id="L458"><span class="lineNum">     458</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 69 times"> + </span>]:<span class="tlaGNC">          69 :   if (!file.good()) {</span></span>
-<span id="L459"><span class="lineNum">     459</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(absl::StrCat(&quot;cannot seek to offset &quot;, offset, &quot; in &quot;, path));</span></span>
-<span id="L460"><span class="lineNum">     460</span>                 :             :   }</span>
-<span id="L461"><span class="lineNum">     461</span>                 :<span class="tlaGNC">          69 :   std::string buffer(length, '\0');</span></span>
-<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaGNC">          69 :   file.read(buffer.data(), static_cast&lt;std::streamsize&gt;(length));</span></span>
-<span id="L463"><span class="lineNum">     463</span>                 :<span class="tlaGNC">          69 :   buffer.resize(static_cast&lt;std::size_t&gt;(file.gcount()));</span></span>
-<span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">          69 :   return buffer;</span></span>
-<span id="L465"><span class="lineNum">     465</span>                 :<span class="tlaGNC">          70 : }</span></span>
-<span id="L466"><span class="lineNum">     466</span>                 :             : </span>
-<span id="L467"><span class="lineNum">     467</span>                 :             : // The stub-plus-manifest prefix of the phar file at `path`: enough to parse, never the data section.</span>
-<span id="L468"><span class="lineNum">     468</span>                 :             : // Read in two steps because the manifest length is itself in the file - first the scan window, then</span>
-<span id="L469"><span class="lineNum">     469</span>                 :             : // exactly as much more as the manifest declares.</span>
-<span id="L470"><span class="lineNum">     470</span>                 :<span class="tlaGNC">          54 : absl::StatusOr&lt;std::string&gt; ReadHeader(std::string_view path) {</span></span>
-<span id="L471"><span class="lineNum">     471</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 53 times"> + </span>]:<span class="tlaGNC">          54 :   MBO_ASSIGN_OR_RETURN(std::string prefix, ReadFileRange(path, 0, kStubScanLimit));</span></span>
-<span id="L472"><span class="lineNum">     472</span>                 :<span class="tlaGNC">          53 :   const std::optional&lt;std::size_t&gt; manifest_at = ManifestOffset(prefix);</span></span>
-<span id="L473"><span class="lineNum">     473</span>         [<span class="tlaGBC" title="branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="branch 1 was taken 36 times"> + </span>]:<span class="tlaGNC">          53 :   if (!manifest_at.has_value()) {</span></span>
-<span id="L474"><span class="lineNum">     474</span>                 :<span class="tlaGNC">          34 :     return absl::InvalidArgumentError(</span></span>
-<span id="L475"><span class="lineNum">     475</span>                 :<span class="tlaGNC">          51 :         absl::StrCat(&quot;not a phar: no __HALT_COMPILER(); token in the first &quot;, kStubScanLimit, &quot; bytes of &quot;, path));</span></span>
-<span id="L476"><span class="lineNum">     476</span>                 :             :   }</span>
-<span id="L477"><span class="lineNum">     477</span>                 :<span class="tlaGNC">          36 :   Cursor cursor(std::string_view(prefix).substr(*manifest_at));</span></span>
-<span id="L478"><span class="lineNum">     478</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 36 times"> + </span>]:<span class="tlaGNC">          36 :   MBO_ASSIGN_OR_RETURN(const std::uint32_t manifest_length, cursor.Uint32(&quot;manifest length&quot;));</span></span>
-<span id="L479"><span class="lineNum">     479</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 36 times"> + </span>]:<span class="tlaGNC">          36 :   if (manifest_length &gt; kMaxManifestBytes) {</span></span>
-<span id="L480"><span class="lineNum">     480</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(</span></span>
-<span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaUNC">           0 :         absl::StrCat(&quot;phar manifest declares &quot;, manifest_length, &quot; bytes, over the &quot;, kMaxManifestBytes, &quot; cap&quot;));</span></span>
-<span id="L482"><span class="lineNum">     482</span>                 :             :   }</span>
-<span id="L483"><span class="lineNum">     483</span>                 :<span class="tlaGNC">          36 :   const std::size_t needed = *manifest_at + 4 + manifest_length;</span></span>
-<span id="L484"><span class="lineNum">     484</span>         [<span class="tlaGBC" title="branch 0 was taken 36 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          36 :   if (needed &lt;= prefix.size()) {</span></span>
-<span id="L485"><span class="lineNum">     485</span>                 :<span class="tlaGNC">          36 :     return prefix;</span></span>
-<span id="L486"><span class="lineNum">     486</span>                 :             :   }</span>
-<span id="L487"><span class="lineNum">     487</span>                 :<span class="tlaUNC">           0 :   return ReadFileRange(path, 0, needed);</span></span>
-<span id="L488"><span class="lineNum">     488</span>                 :<span class="tlaGNC">          54 : }</span></span>
-<span id="L489"><span class="lineNum">     489</span>                 :             : </span>
-<span id="L490"><span class="lineNum">     490</span>                 :             : // A phar compresses a MEMBER, not the container: the manifest says which method and the bytes sit at an</span>
-<span id="L491"><span class="lineNum">     491</span>                 :             : // offset as a bare stream, so neither libarchive format nor filter applies and the reader inflates it</span>
-<span id="L492"><span class="lineNum">     492</span>                 :             : // itself. The manifest's uncompressed size is the output length - it is untrusted, so both paths cap</span>
-<span id="L493"><span class="lineNum">     493</span>                 :             : // the output at exactly that many bytes and report a mismatch rather than growing without bound.</span>
-<span id="L494"><span class="lineNum">     494</span>                 :             : // Declared here, defined after the two decompressors: what the manifest's flags say the member's</span>
-<span id="L495"><span class="lineNum">     495</span>                 :             : // STORED bytes are, turned into its content. Uncompressed is the common case and copies nothing extra.</span>
-<span id="L496"><span class="lineNum">     496</span>                 :             : absl::StatusOr&lt;std::string&gt; Decompress(const Entry&amp; entry, std::string_view stored, std::string_view member);</span>
-<span id="L497"><span class="lineNum">     497</span>                 :             : </span>
-<span id="L498"><span class="lineNum">     498</span>                 :<span class="tlaGNC">           8 : absl::StatusOr&lt;std::string&gt; Inflate(std::string_view compressed, std::uint64_t expected_size) {</span></span>
-<span id="L499"><span class="lineNum">     499</span>                 :             :   // windowBits = -15: a RAW deflate stream, no zlib or gzip wrapper, which is what PHP writes.</span>
-<span id="L500"><span class="lineNum">     500</span>                 :<span class="tlaGNC">           8 :   ::z_stream stream{};</span></span>
-<span id="L501"><span class="lineNum">     501</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :   if (::inflateInit2(&amp;stream, -15) != Z_OK) {</span></span>
-<span id="L502"><span class="lineNum">     502</span>                 :<span class="tlaUNC">           0 :     return absl::ResourceExhaustedError(&quot;cannot initialize the deflate decompressor&quot;);</span></span>
-<span id="L503"><span class="lineNum">     503</span>                 :             :   }</span>
-<span id="L504"><span class="lineNum">     504</span>                 :             :   // The output buffer is OURS, so it is declared in zlib's own element type and converted to a</span>
-<span id="L505"><span class="lineNum">     505</span>                 :             :   // std::string once at the end - no cast at all. The input is a view of someone else's chars, so it</span>
-<span id="L506"><span class="lineNum">     506</span>                 :             :   // still needs one (plus a const_cast: next_in is non-const even though inflate only reads it).</span>
-<span id="L507"><span class="lineNum">     507</span>                 :<span class="tlaGNC">           8 :   std::vector&lt;::Bytef&gt; out(expected_size);</span></span>
-<span id="L508"><span class="lineNum">     508</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-const-cast)</span>
-<span id="L509"><span class="lineNum">     509</span>                 :<span class="tlaGNC">           8 :   stream.next_in = reinterpret_cast&lt;::Bytef*&gt;(const_cast&lt;char*&gt;(compressed.data()));</span></span>
-<span id="L510"><span class="lineNum">     510</span>                 :<span class="tlaGNC">           8 :   stream.avail_in = static_cast&lt;::uInt&gt;(compressed.size());</span></span>
-<span id="L511"><span class="lineNum">     511</span>                 :<span class="tlaGNC">           8 :   stream.next_out = out.data();</span></span>
-<span id="L512"><span class="lineNum">     512</span>                 :<span class="tlaGNC">           8 :   stream.avail_out = static_cast&lt;::uInt&gt;(out.size());</span></span>
-<span id="L513"><span class="lineNum">     513</span>                 :<span class="tlaGNC">           8 :   const int status = ::inflate(&amp;stream, Z_FINISH);</span></span>
-<span id="L514"><span class="lineNum">     514</span>                 :<span class="tlaGNC">           8 :   const std::size_t produced = out.size() - stream.avail_out;</span></span>
-<span id="L515"><span class="lineNum">     515</span>                 :<span class="tlaGNC">           8 :   ::inflateEnd(&amp;stream);</span></span>
-<span id="L516"><span class="lineNum">     516</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :   if (status != Z_STREAM_END || produced != expected_size) {</span></span>
-<span id="L517"><span class="lineNum">     517</span>                 :<span class="tlaGNC">           2 :     return absl::DataLossError(</span></span>
-<span id="L518"><span class="lineNum">     518</span>                 :<span class="tlaGNC">           2 :         absl::StrCat(</span></span>
-<span id="L519"><span class="lineNum">     519</span>                 :<span class="tlaGNC">           1 :             &quot;deflate member did not decompress to its declared &quot;, expected_size, &quot; bytes (got &quot;, produced, &quot;)&quot;));</span></span>
-<span id="L520"><span class="lineNum">     520</span>                 :             :   }</span>
-<span id="L521"><span class="lineNum">     521</span>                 :<span class="tlaGNC">          14 :   return std::string(out.begin(), out.end());</span></span>
-<span id="L522"><span class="lineNum">     522</span>                 :<span class="tlaGNC">           8 : }</span></span>
-<span id="L523"><span class="lineNum">     523</span>                 :             : </span>
-<span id="L524"><span class="lineNum">     524</span>                 :<span class="tlaGNC">           5 : absl::StatusOr&lt;std::string&gt; Bunzip2(std::string_view compressed, std::uint64_t expected_size) {</span></span>
-<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">           5 :   std::string out(expected_size, '\0');</span></span>
-<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">           5 :   auto produced = static_cast&lt;unsigned int&gt;(out.size());</span></span>
-<span id="L527"><span class="lineNum">     527</span>                 :             :   // Same story as zlib: the source is read-only to bzip2 but its signature does not say so.</span>
-<span id="L528"><span class="lineNum">     528</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)</span>
-<span id="L529"><span class="lineNum">     529</span>                 :<span class="tlaGNC">           5 :   char* const source = const_cast&lt;char*&gt;(compressed.data());</span></span>
-<span id="L530"><span class="lineNum">     530</span>                 :             :   const int status =</span>
-<span id="L531"><span class="lineNum">     531</span>                 :<span class="tlaGNC">           5 :       ::BZ2_bzBuffToBuffDecompress(out.data(), &amp;produced, source, static_cast&lt;unsigned int&gt;(compressed.size()), 0, 0);</span></span>
-<span id="L532"><span class="lineNum">     532</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :   if (status != BZ_OK || produced != expected_size) {</span></span>
-<span id="L533"><span class="lineNum">     533</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(</span></span>
-<span id="L534"><span class="lineNum">     534</span>                 :<span class="tlaUNC">           0 :         absl::StrCat(&quot;bzip2 member did not decompress to its declared &quot;, expected_size, &quot; bytes (got &quot;, produced, &quot;)&quot;));</span></span>
-<span id="L535"><span class="lineNum">     535</span>                 :             :   }</span>
-<span id="L536"><span class="lineNum">     536</span>                 :<span class="tlaGNC">           5 :   return out;</span></span>
-<span id="L537"><span class="lineNum">     537</span>                 :<span class="tlaGNC">           5 : }</span></span>
-<span id="L538"><span class="lineNum">     538</span>                 :             : </span>
-<span id="L539"><span class="lineNum">     539</span>                 :<span class="tlaGNC">          35 : absl::StatusOr&lt;std::string&gt; Decompress(const Entry&amp; entry, std::string_view stored, std::string_view member) {</span></span>
-<span id="L540"><span class="lineNum">     540</span>                 :<span class="tlaGNC">          35 :   const std::uint32_t how = entry.flags &amp; kFlagCompressionMask;</span></span>
-<span id="L541"><span class="lineNum">     541</span>         [<span class="tlaGBC" title="branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          35 :   if (how == 0) {</span></span>
-<span id="L542"><span class="lineNum">     542</span>                 :<span class="tlaGNC">          44 :     return std::string(stored);</span></span>
-<span id="L543"><span class="lineNum">     543</span>                 :             :   }</span>
-<span id="L544"><span class="lineNum">     544</span>                 :<span class="tlaGNC">          13 :   const auto size = static_cast&lt;std::uint64_t&gt;(entry.member.size &lt; 0 ? 0 : entry.member.size);</span></span>
-<span id="L545"><span class="lineNum">     545</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          13 :   if (how == kFlagCompressedGz) {</span></span>
-<span id="L546"><span class="lineNum">     546</span>                 :<span class="tlaGNC">           8 :     return Inflate(stored, size);</span></span>
-<span id="L547"><span class="lineNum">     547</span>                 :             :   }</span>
-<span id="L548"><span class="lineNum">     548</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           5 :   if (how == kFlagCompressedBz2) {</span></span>
-<span id="L549"><span class="lineNum">     549</span>                 :<span class="tlaGNC">           5 :     return Bunzip2(stored, size);</span></span>
-<span id="L550"><span class="lineNum">     550</span>                 :             :   }</span>
-<span id="L551"><span class="lineNum">     551</span>                 :<span class="tlaUNC">           0 :   return absl::UnimplementedError(absl::StrCat(&quot;phar member uses an unknown compression method &quot;, how, &quot;: &quot;, member));</span></span>
-<span id="L552"><span class="lineNum">     552</span>                 :             : }</span>
-<span id="L553"><span class="lineNum">     553</span>                 :             : </span>
-<span id="L554"><span class="lineNum">     554</span>                 :             : }  // namespace</span>
-<span id="L555"><span class="lineNum">     555</span>                 :             : </span>
-<span id="L556"><span class="lineNum">     556</span>                 :<span class="tlaGNC">          17 : absl::StatusOr&lt;PharLayout&gt; ParsePharLayout(std::string_view bytes) {</span></span>
-<span id="L557"><span class="lineNum">     557</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          17 :   MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(bytes));</span></span>
-<span id="L558"><span class="lineNum">     558</span>                 :<span class="tlaGNC">          15 :   PharLayout layout{</span></span>
-<span id="L559"><span class="lineNum">     559</span>                 :<span class="tlaGNC">          15 :       .manifest_length_at = whole.manifest_length_at,</span></span>
-<span id="L560"><span class="lineNum">     560</span>                 :<span class="tlaGNC">          15 :       .manifest_start = whole.manifest_start,</span></span>
-<span id="L561"><span class="lineNum">     561</span>                 :<span class="tlaGNC">          15 :       .manifest_size = whole.manifest_size,</span></span>
-<span id="L562"><span class="lineNum">     562</span>                 :<span class="tlaGNC">          15 :       .entries_offset = whole.entries_offset,</span></span>
-<span id="L563"><span class="lineNum">     563</span>                 :<span class="tlaGNC">          15 :       .data_offset = whole.manifest_start + whole.manifest_size,</span></span>
-<span id="L564"><span class="lineNum">     564</span>                 :<span class="tlaGNC">          15 :       .data_end = whole.manifest_start + whole.manifest_size,</span></span>
-<span id="L565"><span class="lineNum">     565</span>                 :<span class="tlaGNC">          15 :       .global_flags = whole.global_flags,</span></span>
-<span id="L566"><span class="lineNum">     566</span>                 :<span class="tlaGNC">          15 :   };</span></span>
-<span id="L567"><span class="lineNum">     567</span>                 :<span class="tlaGNC">          15 :   layout.members.reserve(whole.entries.size());</span></span>
-<span id="L568"><span class="lineNum">     568</span>         [<span class="tlaGBC" title="branch 0 was taken 60 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          75 :   for (const Entry&amp; entry : whole.entries) {</span></span>
-<span id="L569"><span class="lineNum">     569</span>                 :<span class="tlaGNC">          60 :     layout.members.push_back(</span></span>
-<span id="L570"><span class="lineNum">     570</span>                 :<span class="tlaGNC">          60 :         PharMemberLayout{</span></span>
-<span id="L571"><span class="lineNum">     571</span>                 :<span class="tlaGNC">          60 :             .name = entry.stored_name,</span></span>
-<span id="L572"><span class="lineNum">     572</span>                 :<span class="tlaGNC">          60 :             .entry_offset = whole.manifest_start + entry.entry_offset,</span></span>
-<span id="L573"><span class="lineNum">     573</span>                 :<span class="tlaGNC">          60 :             .entry_size = entry.entry_size,</span></span>
-<span id="L574"><span class="lineNum">     574</span>                 :<span class="tlaGNC">          60 :             .data_offset = entry.data_offset,</span></span>
-<span id="L575"><span class="lineNum">     575</span>                 :<span class="tlaGNC">          60 :             .stored_size = entry.stored_size,</span></span>
-<span id="L576"><span class="lineNum">     576</span>                 :             :         });</span>
-<span id="L577"><span class="lineNum">     577</span>                 :<span class="tlaGNC">          60 :     layout.data_end = entry.data_offset + entry.stored_size;</span></span>
-<span id="L578"><span class="lineNum">     578</span>                 :             :   }</span>
-<span id="L579"><span class="lineNum">     579</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          15 :   if (layout.data_end &gt; bytes.size()) {</span></span>
-<span id="L580"><span class="lineNum">     580</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(</span></span>
-<span id="L581"><span class="lineNum">     581</span>                 :<span class="tlaUNC">           0 :         absl::StrCat(</span></span>
-<span id="L582"><span class="lineNum">     582</span>                 :             :             &quot;phar data section is truncated: members end at &quot;, layout.data_end, &quot;, the file has &quot;, bytes.size(),</span>
-<span id="L583"><span class="lineNum">     583</span>                 :<span class="tlaUNC">           0 :             &quot; bytes&quot;));</span></span>
-<span id="L584"><span class="lineNum">     584</span>                 :             :   }</span>
-<span id="L585"><span class="lineNum">     585</span>                 :<span class="tlaGNC">          15 :   return layout;</span></span>
-<span id="L586"><span class="lineNum">     586</span>                 :<span class="tlaGNC">          17 : }</span></span>
-<span id="L587"><span class="lineNum">     587</span>                 :             : </span>
-<span id="L588"><span class="lineNum">     588</span>                 :<span class="tlaGNC">         184 : absl::StatusOr&lt;std::vector&lt;Member&gt;&gt; ListPharMembers(std::string_view bytes) {</span></span>
-<span id="L589"><span class="lineNum">     589</span>         [<span class="tlaGBC" title="branch 0 was taken 147 times"> + </span><span class="tlaGBC" title="branch 1 was taken 37 times"> + </span>]:<span class="tlaGNC">         184 :   MBO_ASSIGN_OR_RETURN(WholePhar whole, ParseWholePharLayout(bytes));</span></span>
-<span id="L590"><span class="lineNum">     590</span>                 :<span class="tlaGNC">          37 :   const bool stored_stub = HasStoredStub(whole.entries);</span></span>
-<span id="L591"><span class="lineNum">     591</span>                 :<span class="tlaGNC">          37 :   std::vector&lt;Member&gt; members = MembersOf(std::move(whole.entries));</span></span>
-<span id="L592"><span class="lineNum">     592</span>         [<span class="tlaGBC" title="branch 0 was taken 36 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          37 :   if (!stored_stub) {</span></span>
-<span id="L593"><span class="lineNum">     593</span>                 :<span class="tlaGNC">          36 :     members.push_back(StubMember(whole.manifest_length_at));</span></span>
-<span id="L594"><span class="lineNum">     594</span>                 :             :   }</span>
-<span id="L595"><span class="lineNum">     595</span>                 :<span class="tlaGNC">          37 :   return members;</span></span>
-<span id="L596"><span class="lineNum">     596</span>                 :<span class="tlaGNC">         184 : }</span></span>
-<span id="L597"><span class="lineNum">     597</span>                 :             : </span>
-<span id="L598"><span class="lineNum">     598</span>                 :<span class="tlaGNC">          35 : absl::StatusOr&lt;std::vector&lt;Member&gt;&gt; ListPharMembersOfFile(std::string_view path) {</span></span>
-<span id="L599"><span class="lineNum">     599</span>         [<span class="tlaGBC" title="branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="branch 1 was taken 17 times"> + </span>]:<span class="tlaGNC">          35 :   MBO_ASSIGN_OR_RETURN(const std::string header, ReadHeader(path));</span></span>
-<span id="L600"><span class="lineNum">     600</span>                 :<span class="tlaGNC">          17 :   return ListPharMembers(header);</span></span>
-<span id="L601"><span class="lineNum">     601</span>                 :<span class="tlaGNC">          35 : }</span></span>
-<span id="L602"><span class="lineNum">     602</span>                 :             : </span>
-<span id="L603"><span class="lineNum">     603</span>                 :<span class="tlaGNC">          38 : absl::StatusOr&lt;std::string&gt; ReadPharMember(std::string_view bytes, std::string_view member, std::uint64_t max_bytes) {</span></span>
-<span id="L604"><span class="lineNum">     604</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 38 times"> + </span>]:<span class="tlaGNC">          38 :   MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(bytes));</span></span>
-<span id="L605"><span class="lineNum">     605</span>   [<span class="tlaGBC" title="branch 0 was taken 37 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 7 times"> + </span><span class="tlaGBC" title="branch 3 was taken 30 times"> + </span> :<span class="tlaGNC">          38 :   if (!HasStoredStub(whole.entries) &amp;&amp; NormalizeMemberName(member) == kPharStubMember) {</span></span>
+<span id="L453"><span class="lineNum">     453</span>                 :             :   // XFF_HOST_IO: PHAR adapter reads its explicitly selected host container.</span>
+<span id="L454"><span class="lineNum">     454</span>                 :<span class="tlaGNC">          70 :   std::ifstream file(std::string(path), std::ios::binary);</span></span>
+<span id="L455"><span class="lineNum">     455</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 69 times"> + </span>]:<span class="tlaGNC">          70 :   if (!file.is_open()) {</span></span>
+<span id="L456"><span class="lineNum">     456</span>                 :<span class="tlaGNC">           1 :     return absl::InvalidArgumentError(absl::StrCat(&quot;cannot open &quot;, path));</span></span>
+<span id="L457"><span class="lineNum">     457</span>                 :             :   }</span>
+<span id="L458"><span class="lineNum">     458</span>                 :<span class="tlaGNC">          69 :   file.seekg(static_cast&lt;std::streamoff&gt;(offset));</span></span>
+<span id="L459"><span class="lineNum">     459</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 69 times"> + </span>]:<span class="tlaGNC">          69 :   if (!file.good()) {</span></span>
+<span id="L460"><span class="lineNum">     460</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(absl::StrCat(&quot;cannot seek to offset &quot;, offset, &quot; in &quot;, path));</span></span>
+<span id="L461"><span class="lineNum">     461</span>                 :             :   }</span>
+<span id="L462"><span class="lineNum">     462</span>                 :<span class="tlaGNC">          69 :   std::string buffer(length, '\0');</span></span>
+<span id="L463"><span class="lineNum">     463</span>                 :<span class="tlaGNC">          69 :   file.read(buffer.data(), static_cast&lt;std::streamsize&gt;(length));</span></span>
+<span id="L464"><span class="lineNum">     464</span>                 :<span class="tlaGNC">          69 :   buffer.resize(static_cast&lt;std::size_t&gt;(file.gcount()));</span></span>
+<span id="L465"><span class="lineNum">     465</span>                 :<span class="tlaGNC">          69 :   return buffer;</span></span>
+<span id="L466"><span class="lineNum">     466</span>                 :<span class="tlaGNC">          70 : }</span></span>
+<span id="L467"><span class="lineNum">     467</span>                 :             : </span>
+<span id="L468"><span class="lineNum">     468</span>                 :             : // The stub-plus-manifest prefix of the phar file at `path`: enough to parse, never the data section.</span>
+<span id="L469"><span class="lineNum">     469</span>                 :             : // Read in two steps because the manifest length is itself in the file - first the scan window, then</span>
+<span id="L470"><span class="lineNum">     470</span>                 :             : // exactly as much more as the manifest declares.</span>
+<span id="L471"><span class="lineNum">     471</span>                 :<span class="tlaGNC">          54 : absl::StatusOr&lt;std::string&gt; ReadHeader(std::string_view path) {</span></span>
+<span id="L472"><span class="lineNum">     472</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 53 times"> + </span>]:<span class="tlaGNC">          54 :   MBO_ASSIGN_OR_RETURN(std::string prefix, ReadFileRange(path, 0, kStubScanLimit));</span></span>
+<span id="L473"><span class="lineNum">     473</span>                 :<span class="tlaGNC">          53 :   const std::optional&lt;std::size_t&gt; manifest_at = ManifestOffset(prefix);</span></span>
+<span id="L474"><span class="lineNum">     474</span>         [<span class="tlaGBC" title="branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="branch 1 was taken 36 times"> + </span>]:<span class="tlaGNC">          53 :   if (!manifest_at.has_value()) {</span></span>
+<span id="L475"><span class="lineNum">     475</span>                 :<span class="tlaGNC">          34 :     return absl::InvalidArgumentError(</span></span>
+<span id="L476"><span class="lineNum">     476</span>                 :<span class="tlaGNC">          51 :         absl::StrCat(&quot;not a phar: no __HALT_COMPILER(); token in the first &quot;, kStubScanLimit, &quot; bytes of &quot;, path));</span></span>
+<span id="L477"><span class="lineNum">     477</span>                 :             :   }</span>
+<span id="L478"><span class="lineNum">     478</span>                 :<span class="tlaGNC">          36 :   Cursor cursor(std::string_view(prefix).substr(*manifest_at));</span></span>
+<span id="L479"><span class="lineNum">     479</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 36 times"> + </span>]:<span class="tlaGNC">          36 :   MBO_ASSIGN_OR_RETURN(const std::uint32_t manifest_length, cursor.Uint32(&quot;manifest length&quot;));</span></span>
+<span id="L480"><span class="lineNum">     480</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 36 times"> + </span>]:<span class="tlaGNC">          36 :   if (manifest_length &gt; kMaxManifestBytes) {</span></span>
+<span id="L481"><span class="lineNum">     481</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(</span></span>
+<span id="L482"><span class="lineNum">     482</span>                 :<span class="tlaUNC">           0 :         absl::StrCat(&quot;phar manifest declares &quot;, manifest_length, &quot; bytes, over the &quot;, kMaxManifestBytes, &quot; cap&quot;));</span></span>
+<span id="L483"><span class="lineNum">     483</span>                 :             :   }</span>
+<span id="L484"><span class="lineNum">     484</span>                 :<span class="tlaGNC">          36 :   const std::size_t needed = *manifest_at + 4 + manifest_length;</span></span>
+<span id="L485"><span class="lineNum">     485</span>         [<span class="tlaGBC" title="branch 0 was taken 36 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          36 :   if (needed &lt;= prefix.size()) {</span></span>
+<span id="L486"><span class="lineNum">     486</span>                 :<span class="tlaGNC">          36 :     return prefix;</span></span>
+<span id="L487"><span class="lineNum">     487</span>                 :             :   }</span>
+<span id="L488"><span class="lineNum">     488</span>                 :<span class="tlaUNC">           0 :   return ReadFileRange(path, 0, needed);</span></span>
+<span id="L489"><span class="lineNum">     489</span>                 :<span class="tlaGNC">          54 : }</span></span>
+<span id="L490"><span class="lineNum">     490</span>                 :             : </span>
+<span id="L491"><span class="lineNum">     491</span>                 :             : // A phar compresses a MEMBER, not the container: the manifest says which method and the bytes sit at an</span>
+<span id="L492"><span class="lineNum">     492</span>                 :             : // offset as a bare stream, so neither libarchive format nor filter applies and the reader inflates it</span>
+<span id="L493"><span class="lineNum">     493</span>                 :             : // itself. The manifest's uncompressed size is the output length - it is untrusted, so both paths cap</span>
+<span id="L494"><span class="lineNum">     494</span>                 :             : // the output at exactly that many bytes and report a mismatch rather than growing without bound.</span>
+<span id="L495"><span class="lineNum">     495</span>                 :             : // Declared here, defined after the two decompressors: what the manifest's flags say the member's</span>
+<span id="L496"><span class="lineNum">     496</span>                 :             : // STORED bytes are, turned into its content. Uncompressed is the common case and copies nothing extra.</span>
+<span id="L497"><span class="lineNum">     497</span>                 :             : absl::StatusOr&lt;std::string&gt; Decompress(const Entry&amp; entry, std::string_view stored, std::string_view member);</span>
+<span id="L498"><span class="lineNum">     498</span>                 :             : </span>
+<span id="L499"><span class="lineNum">     499</span>                 :<span class="tlaGNC">           8 : absl::StatusOr&lt;std::string&gt; Inflate(std::string_view compressed, std::uint64_t expected_size) {</span></span>
+<span id="L500"><span class="lineNum">     500</span>                 :             :   // windowBits = -15: a RAW deflate stream, no zlib or gzip wrapper, which is what PHP writes.</span>
+<span id="L501"><span class="lineNum">     501</span>                 :<span class="tlaGNC">           8 :   ::z_stream stream{};</span></span>
+<span id="L502"><span class="lineNum">     502</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 8 times"> + </span>]:<span class="tlaGNC">           8 :   if (::inflateInit2(&amp;stream, -15) != Z_OK) {</span></span>
+<span id="L503"><span class="lineNum">     503</span>                 :<span class="tlaUNC">           0 :     return absl::ResourceExhaustedError(&quot;cannot initialize the deflate decompressor&quot;);</span></span>
+<span id="L504"><span class="lineNum">     504</span>                 :             :   }</span>
+<span id="L505"><span class="lineNum">     505</span>                 :             :   // The output buffer is OURS, so it is declared in zlib's own element type and converted to a</span>
+<span id="L506"><span class="lineNum">     506</span>                 :             :   // std::string once at the end - no cast at all. The input is a view of someone else's chars, so it</span>
+<span id="L507"><span class="lineNum">     507</span>                 :             :   // still needs one (plus a const_cast: next_in is non-const even though inflate only reads it).</span>
+<span id="L508"><span class="lineNum">     508</span>                 :<span class="tlaGNC">           8 :   std::vector&lt;::Bytef&gt; out(expected_size);</span></span>
+<span id="L509"><span class="lineNum">     509</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-const-cast)</span>
+<span id="L510"><span class="lineNum">     510</span>                 :<span class="tlaGNC">           8 :   stream.next_in = reinterpret_cast&lt;::Bytef*&gt;(const_cast&lt;char*&gt;(compressed.data()));</span></span>
+<span id="L511"><span class="lineNum">     511</span>                 :<span class="tlaGNC">           8 :   stream.avail_in = static_cast&lt;::uInt&gt;(compressed.size());</span></span>
+<span id="L512"><span class="lineNum">     512</span>                 :<span class="tlaGNC">           8 :   stream.next_out = out.data();</span></span>
+<span id="L513"><span class="lineNum">     513</span>                 :<span class="tlaGNC">           8 :   stream.avail_out = static_cast&lt;::uInt&gt;(out.size());</span></span>
+<span id="L514"><span class="lineNum">     514</span>                 :<span class="tlaGNC">           8 :   const int status = ::inflate(&amp;stream, Z_FINISH);</span></span>
+<span id="L515"><span class="lineNum">     515</span>                 :<span class="tlaGNC">           8 :   const std::size_t produced = out.size() - stream.avail_out;</span></span>
+<span id="L516"><span class="lineNum">     516</span>                 :<span class="tlaGNC">           8 :   ::inflateEnd(&amp;stream);</span></span>
+<span id="L517"><span class="lineNum">     517</span>   [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 7 times"> + </span>]:<span class="tlaGNC">           8 :   if (status != Z_STREAM_END || produced != expected_size) {</span></span>
+<span id="L518"><span class="lineNum">     518</span>                 :<span class="tlaGNC">           2 :     return absl::DataLossError(</span></span>
+<span id="L519"><span class="lineNum">     519</span>                 :<span class="tlaGNC">           2 :         absl::StrCat(</span></span>
+<span id="L520"><span class="lineNum">     520</span>                 :<span class="tlaGNC">           1 :             &quot;deflate member did not decompress to its declared &quot;, expected_size, &quot; bytes (got &quot;, produced, &quot;)&quot;));</span></span>
+<span id="L521"><span class="lineNum">     521</span>                 :             :   }</span>
+<span id="L522"><span class="lineNum">     522</span>                 :<span class="tlaGNC">          14 :   return std::string(out.begin(), out.end());</span></span>
+<span id="L523"><span class="lineNum">     523</span>                 :<span class="tlaGNC">           8 : }</span></span>
+<span id="L524"><span class="lineNum">     524</span>                 :             : </span>
+<span id="L525"><span class="lineNum">     525</span>                 :<span class="tlaGNC">           5 : absl::StatusOr&lt;std::string&gt; Bunzip2(std::string_view compressed, std::uint64_t expected_size) {</span></span>
+<span id="L526"><span class="lineNum">     526</span>                 :<span class="tlaGNC">           5 :   std::string out(expected_size, '\0');</span></span>
+<span id="L527"><span class="lineNum">     527</span>                 :<span class="tlaGNC">           5 :   auto produced = static_cast&lt;unsigned int&gt;(out.size());</span></span>
+<span id="L528"><span class="lineNum">     528</span>                 :             :   // Same story as zlib: the source is read-only to bzip2 but its signature does not say so.</span>
+<span id="L529"><span class="lineNum">     529</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)</span>
+<span id="L530"><span class="lineNum">     530</span>                 :<span class="tlaGNC">           5 :   char* const source = const_cast&lt;char*&gt;(compressed.data());</span></span>
+<span id="L531"><span class="lineNum">     531</span>                 :             :   const int status =</span>
+<span id="L532"><span class="lineNum">     532</span>                 :<span class="tlaGNC">           5 :       ::BZ2_bzBuffToBuffDecompress(out.data(), &amp;produced, source, static_cast&lt;unsigned int&gt;(compressed.size()), 0, 0);</span></span>
+<span id="L533"><span class="lineNum">     533</span>   [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaUNC" title="branch 2 was not taken"> - </span><span class="tlaGBC" title="branch 3 was taken 5 times"> + </span>]:<span class="tlaGNC">           5 :   if (status != BZ_OK || produced != expected_size) {</span></span>
+<span id="L534"><span class="lineNum">     534</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(</span></span>
+<span id="L535"><span class="lineNum">     535</span>                 :<span class="tlaUNC">           0 :         absl::StrCat(&quot;bzip2 member did not decompress to its declared &quot;, expected_size, &quot; bytes (got &quot;, produced, &quot;)&quot;));</span></span>
+<span id="L536"><span class="lineNum">     536</span>                 :             :   }</span>
+<span id="L537"><span class="lineNum">     537</span>                 :<span class="tlaGNC">           5 :   return out;</span></span>
+<span id="L538"><span class="lineNum">     538</span>                 :<span class="tlaGNC">           5 : }</span></span>
+<span id="L539"><span class="lineNum">     539</span>                 :             : </span>
+<span id="L540"><span class="lineNum">     540</span>                 :<span class="tlaGNC">          35 : absl::StatusOr&lt;std::string&gt; Decompress(const Entry&amp; entry, std::string_view stored, std::string_view member) {</span></span>
+<span id="L541"><span class="lineNum">     541</span>                 :<span class="tlaGNC">          35 :   const std::uint32_t how = entry.flags &amp; kFlagCompressionMask;</span></span>
+<span id="L542"><span class="lineNum">     542</span>         [<span class="tlaGBC" title="branch 0 was taken 22 times"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          35 :   if (how == 0) {</span></span>
+<span id="L543"><span class="lineNum">     543</span>                 :<span class="tlaGNC">          44 :     return std::string(stored);</span></span>
+<span id="L544"><span class="lineNum">     544</span>                 :             :   }</span>
+<span id="L545"><span class="lineNum">     545</span>                 :<span class="tlaGNC">          13 :   const auto size = static_cast&lt;std::uint64_t&gt;(entry.member.size &lt; 0 ? 0 : entry.member.size);</span></span>
+<span id="L546"><span class="lineNum">     546</span>         [<span class="tlaGBC" title="branch 0 was taken 8 times"> + </span><span class="tlaGBC" title="branch 1 was taken 5 times"> + </span>]:<span class="tlaGNC">          13 :   if (how == kFlagCompressedGz) {</span></span>
+<span id="L547"><span class="lineNum">     547</span>                 :<span class="tlaGNC">           8 :     return Inflate(stored, size);</span></span>
+<span id="L548"><span class="lineNum">     548</span>                 :             :   }</span>
+<span id="L549"><span class="lineNum">     549</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">           5 :   if (how == kFlagCompressedBz2) {</span></span>
+<span id="L550"><span class="lineNum">     550</span>                 :<span class="tlaGNC">           5 :     return Bunzip2(stored, size);</span></span>
+<span id="L551"><span class="lineNum">     551</span>                 :             :   }</span>
+<span id="L552"><span class="lineNum">     552</span>                 :<span class="tlaUNC">           0 :   return absl::UnimplementedError(absl::StrCat(&quot;phar member uses an unknown compression method &quot;, how, &quot;: &quot;, member));</span></span>
+<span id="L553"><span class="lineNum">     553</span>                 :             : }</span>
+<span id="L554"><span class="lineNum">     554</span>                 :             : </span>
+<span id="L555"><span class="lineNum">     555</span>                 :             : }  // namespace</span>
+<span id="L556"><span class="lineNum">     556</span>                 :             : </span>
+<span id="L557"><span class="lineNum">     557</span>                 :<span class="tlaGNC">          17 : absl::StatusOr&lt;PharLayout&gt; ParsePharLayout(std::string_view bytes) {</span></span>
+<span id="L558"><span class="lineNum">     558</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          17 :   MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(bytes));</span></span>
+<span id="L559"><span class="lineNum">     559</span>                 :<span class="tlaGNC">          15 :   PharLayout layout{</span></span>
+<span id="L560"><span class="lineNum">     560</span>                 :<span class="tlaGNC">          15 :       .manifest_length_at = whole.manifest_length_at,</span></span>
+<span id="L561"><span class="lineNum">     561</span>                 :<span class="tlaGNC">          15 :       .manifest_start = whole.manifest_start,</span></span>
+<span id="L562"><span class="lineNum">     562</span>                 :<span class="tlaGNC">          15 :       .manifest_size = whole.manifest_size,</span></span>
+<span id="L563"><span class="lineNum">     563</span>                 :<span class="tlaGNC">          15 :       .entries_offset = whole.entries_offset,</span></span>
+<span id="L564"><span class="lineNum">     564</span>                 :<span class="tlaGNC">          15 :       .data_offset = whole.manifest_start + whole.manifest_size,</span></span>
+<span id="L565"><span class="lineNum">     565</span>                 :<span class="tlaGNC">          15 :       .data_end = whole.manifest_start + whole.manifest_size,</span></span>
+<span id="L566"><span class="lineNum">     566</span>                 :<span class="tlaGNC">          15 :       .global_flags = whole.global_flags,</span></span>
+<span id="L567"><span class="lineNum">     567</span>                 :<span class="tlaGNC">          15 :   };</span></span>
+<span id="L568"><span class="lineNum">     568</span>                 :<span class="tlaGNC">          15 :   layout.members.reserve(whole.entries.size());</span></span>
+<span id="L569"><span class="lineNum">     569</span>         [<span class="tlaGBC" title="branch 0 was taken 60 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          75 :   for (const Entry&amp; entry : whole.entries) {</span></span>
+<span id="L570"><span class="lineNum">     570</span>                 :<span class="tlaGNC">          60 :     layout.members.push_back(</span></span>
+<span id="L571"><span class="lineNum">     571</span>                 :<span class="tlaGNC">          60 :         PharMemberLayout{</span></span>
+<span id="L572"><span class="lineNum">     572</span>                 :<span class="tlaGNC">          60 :             .name = entry.stored_name,</span></span>
+<span id="L573"><span class="lineNum">     573</span>                 :<span class="tlaGNC">          60 :             .entry_offset = whole.manifest_start + entry.entry_offset,</span></span>
+<span id="L574"><span class="lineNum">     574</span>                 :<span class="tlaGNC">          60 :             .entry_size = entry.entry_size,</span></span>
+<span id="L575"><span class="lineNum">     575</span>                 :<span class="tlaGNC">          60 :             .data_offset = entry.data_offset,</span></span>
+<span id="L576"><span class="lineNum">     576</span>                 :<span class="tlaGNC">          60 :             .stored_size = entry.stored_size,</span></span>
+<span id="L577"><span class="lineNum">     577</span>                 :             :         });</span>
+<span id="L578"><span class="lineNum">     578</span>                 :<span class="tlaGNC">          60 :     layout.data_end = entry.data_offset + entry.stored_size;</span></span>
+<span id="L579"><span class="lineNum">     579</span>                 :             :   }</span>
+<span id="L580"><span class="lineNum">     580</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          15 :   if (layout.data_end &gt; bytes.size()) {</span></span>
+<span id="L581"><span class="lineNum">     581</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(</span></span>
+<span id="L582"><span class="lineNum">     582</span>                 :<span class="tlaUNC">           0 :         absl::StrCat(</span></span>
+<span id="L583"><span class="lineNum">     583</span>                 :             :             &quot;phar data section is truncated: members end at &quot;, layout.data_end, &quot;, the file has &quot;, bytes.size(),</span>
+<span id="L584"><span class="lineNum">     584</span>                 :<span class="tlaUNC">           0 :             &quot; bytes&quot;));</span></span>
+<span id="L585"><span class="lineNum">     585</span>                 :             :   }</span>
+<span id="L586"><span class="lineNum">     586</span>                 :<span class="tlaGNC">          15 :   return layout;</span></span>
+<span id="L587"><span class="lineNum">     587</span>                 :<span class="tlaGNC">          17 : }</span></span>
+<span id="L588"><span class="lineNum">     588</span>                 :             : </span>
+<span id="L589"><span class="lineNum">     589</span>                 :<span class="tlaGNC">         184 : absl::StatusOr&lt;std::vector&lt;Member&gt;&gt; ListPharMembers(std::string_view bytes) {</span></span>
+<span id="L590"><span class="lineNum">     590</span>         [<span class="tlaGBC" title="branch 0 was taken 147 times"> + </span><span class="tlaGBC" title="branch 1 was taken 37 times"> + </span>]:<span class="tlaGNC">         184 :   MBO_ASSIGN_OR_RETURN(WholePhar whole, ParseWholePharLayout(bytes));</span></span>
+<span id="L591"><span class="lineNum">     591</span>                 :<span class="tlaGNC">          37 :   const bool stored_stub = HasStoredStub(whole.entries);</span></span>
+<span id="L592"><span class="lineNum">     592</span>                 :<span class="tlaGNC">          37 :   std::vector&lt;Member&gt; members = MembersOf(std::move(whole.entries));</span></span>
+<span id="L593"><span class="lineNum">     593</span>         [<span class="tlaGBC" title="branch 0 was taken 36 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          37 :   if (!stored_stub) {</span></span>
+<span id="L594"><span class="lineNum">     594</span>                 :<span class="tlaGNC">          36 :     members.push_back(StubMember(whole.manifest_length_at));</span></span>
+<span id="L595"><span class="lineNum">     595</span>                 :             :   }</span>
+<span id="L596"><span class="lineNum">     596</span>                 :<span class="tlaGNC">          37 :   return members;</span></span>
+<span id="L597"><span class="lineNum">     597</span>                 :<span class="tlaGNC">         184 : }</span></span>
+<span id="L598"><span class="lineNum">     598</span>                 :             : </span>
+<span id="L599"><span class="lineNum">     599</span>                 :<span class="tlaGNC">          35 : absl::StatusOr&lt;std::vector&lt;Member&gt;&gt; ListPharMembersOfFile(std::string_view path) {</span></span>
+<span id="L600"><span class="lineNum">     600</span>         [<span class="tlaGBC" title="branch 0 was taken 18 times"> + </span><span class="tlaGBC" title="branch 1 was taken 17 times"> + </span>]:<span class="tlaGNC">          35 :   MBO_ASSIGN_OR_RETURN(const std::string header, ReadHeader(path));</span></span>
+<span id="L601"><span class="lineNum">     601</span>                 :<span class="tlaGNC">          17 :   return ListPharMembers(header);</span></span>
+<span id="L602"><span class="lineNum">     602</span>                 :<span class="tlaGNC">          35 : }</span></span>
+<span id="L603"><span class="lineNum">     603</span>                 :             : </span>
+<span id="L604"><span class="lineNum">     604</span>                 :<span class="tlaGNC">          38 : absl::StatusOr&lt;std::string&gt; ReadPharMember(std::string_view bytes, std::string_view member, std::uint64_t max_bytes) {</span></span>
+<span id="L605"><span class="lineNum">     605</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 38 times"> + </span>]:<span class="tlaGNC">          38 :   MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(bytes));</span></span>
+<span id="L606"><span class="lineNum">     606</span>   [<span class="tlaGBC" title="branch 0 was taken 37 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span><span class="tlaGBC" title="branch 2 was taken 7 times"> + </span><span class="tlaGBC" title="branch 3 was taken 30 times"> + </span> :<span class="tlaGNC">          38 :   if (!HasStoredStub(whole.entries) &amp;&amp; NormalizeMemberName(member) == kPharStubMember) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 7 times"> + </span><span class="tlaGBC" title="branch 5 was taken 31 times"> + </span>]
-<span id="L606"><span class="lineNum">     606</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           7 :     MBO_RETURN_IF_ERROR(CheckLimit(whole.manifest_length_at, max_bytes, member));</span></span>
-<span id="L607"><span class="lineNum">     607</span>                 :<span class="tlaGNC">           6 :     return std::string(bytes.substr(0, whole.manifest_length_at));</span></span>
-<span id="L608"><span class="lineNum">     608</span>                 :             :   }</span>
-<span id="L609"><span class="lineNum">     609</span>                 :<span class="tlaGNC">          31 :   const std::vector&lt;Entry&gt;&amp; entries = whole.entries;</span></span>
-<span id="L610"><span class="lineNum">     610</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 24 times"> + </span>]:<span class="tlaGNC">          31 :   MBO_ASSIGN_OR_RETURN(const std::reference_wrapper&lt;const Entry&gt; entry_ref, FindEntry(entries, member));</span></span>
-<span id="L611"><span class="lineNum">     611</span>                 :<span class="tlaGNC">          24 :   const Entry&amp; entry = entry_ref.get();</span></span>
-<span id="L612"><span class="lineNum">     612</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="branch 2 was taken 22 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">          24 :   MBO_RETURN_IF_ERROR(CheckLimit(static_cast&lt;std::uint64_t&gt;(entry.member.size), max_bytes, member));</span></span>
-<span id="L613"><span class="lineNum">     613</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="branch 2 was taken 22 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          22 :   MBO_RETURN_IF_ERROR(CheckLimit(entry.stored_size, max_bytes, member));</span></span>
-<span id="L614"><span class="lineNum">     614</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">          22 :   if (entry.data_offset + entry.stored_size &gt; bytes.size()) {</span></span>
-<span id="L615"><span class="lineNum">     615</span>                 :<span class="tlaGNC">           1 :     return absl::DataLossError(absl::StrCat(&quot;phar member data runs past the end of the container: &quot;, member));</span></span>
-<span id="L616"><span class="lineNum">     616</span>                 :             :   }</span>
-<span id="L617"><span class="lineNum">     617</span>                 :<span class="tlaGNC">          21 :   const std::string_view stored = bytes.substr(entry.data_offset, entry.stored_size);</span></span>
-<span id="L618"><span class="lineNum">     618</span>                 :<span class="tlaGNC">          21 :   return Decompress(entry, stored, member);</span></span>
-<span id="L619"><span class="lineNum">     619</span>                 :<span class="tlaGNC">          38 : }</span></span>
-<span id="L620"><span class="lineNum">     620</span>                 :             : </span>
-<span id="L621"><span class="lineNum">     621</span>                 :<span class="tlaGNC">          19 : absl::StatusOr&lt;std::string&gt; ReadPharMemberOfFile(</span></span>
-<span id="L622"><span class="lineNum">     622</span>                 :             :     std::string_view path,</span>
-<span id="L623"><span class="lineNum">     623</span>                 :             :     std::string_view member,</span>
-<span id="L624"><span class="lineNum">     624</span>                 :             :     std::uint64_t max_bytes) {</span>
-<span id="L625"><span class="lineNum">     625</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :   MBO_ASSIGN_OR_RETURN(const std::string header, ReadHeader(path));</span></span>
-<span id="L626"><span class="lineNum">     626</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :   MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(header));</span></span>
-<span id="L627"><span class="lineNum">     627</span>   [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="branch 3 was taken 17 times"> + </span> :<span class="tlaGNC">          19 :   if (!HasStoredStub(whole.entries) &amp;&amp; NormalizeMemberName(member) == kPharStubMember) {</span></span>
+<span id="L607"><span class="lineNum">     607</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span><span class="tlaGBC" title="branch 2 was taken 6 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">           7 :     MBO_RETURN_IF_ERROR(CheckLimit(whole.manifest_length_at, max_bytes, member));</span></span>
+<span id="L608"><span class="lineNum">     608</span>                 :<span class="tlaGNC">           6 :     return std::string(bytes.substr(0, whole.manifest_length_at));</span></span>
+<span id="L609"><span class="lineNum">     609</span>                 :             :   }</span>
+<span id="L610"><span class="lineNum">     610</span>                 :<span class="tlaGNC">          31 :   const std::vector&lt;Entry&gt;&amp; entries = whole.entries;</span></span>
+<span id="L611"><span class="lineNum">     611</span>         [<span class="tlaGBC" title="branch 0 was taken 7 times"> + </span><span class="tlaGBC" title="branch 1 was taken 24 times"> + </span>]:<span class="tlaGNC">          31 :   MBO_ASSIGN_OR_RETURN(const std::reference_wrapper&lt;const Entry&gt; entry_ref, FindEntry(entries, member));</span></span>
+<span id="L612"><span class="lineNum">     612</span>                 :<span class="tlaGNC">          24 :   const Entry&amp; entry = entry_ref.get();</span></span>
+<span id="L613"><span class="lineNum">     613</span>   [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="branch 2 was taken 22 times"> + </span><span class="tlaGBC" title="branch 3 was taken 2 times"> + </span>]:<span class="tlaGNC">          24 :   MBO_RETURN_IF_ERROR(CheckLimit(static_cast&lt;std::uint64_t&gt;(entry.member.size), max_bytes, member));</span></span>
+<span id="L614"><span class="lineNum">     614</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 22 times"> + </span><span class="tlaGBC" title="branch 2 was taken 22 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          22 :   MBO_RETURN_IF_ERROR(CheckLimit(entry.stored_size, max_bytes, member));</span></span>
+<span id="L615"><span class="lineNum">     615</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">          22 :   if (entry.data_offset + entry.stored_size &gt; bytes.size()) {</span></span>
+<span id="L616"><span class="lineNum">     616</span>                 :<span class="tlaGNC">           1 :     return absl::DataLossError(absl::StrCat(&quot;phar member data runs past the end of the container: &quot;, member));</span></span>
+<span id="L617"><span class="lineNum">     617</span>                 :             :   }</span>
+<span id="L618"><span class="lineNum">     618</span>                 :<span class="tlaGNC">          21 :   const std::string_view stored = bytes.substr(entry.data_offset, entry.stored_size);</span></span>
+<span id="L619"><span class="lineNum">     619</span>                 :<span class="tlaGNC">          21 :   return Decompress(entry, stored, member);</span></span>
+<span id="L620"><span class="lineNum">     620</span>                 :<span class="tlaGNC">          38 : }</span></span>
+<span id="L621"><span class="lineNum">     621</span>                 :             : </span>
+<span id="L622"><span class="lineNum">     622</span>                 :<span class="tlaGNC">          19 : absl::StatusOr&lt;std::string&gt; ReadPharMemberOfFile(</span></span>
+<span id="L623"><span class="lineNum">     623</span>                 :             :     std::string_view path,</span>
+<span id="L624"><span class="lineNum">     624</span>                 :             :     std::string_view member,</span>
+<span id="L625"><span class="lineNum">     625</span>                 :             :     std::uint64_t max_bytes) {</span>
+<span id="L626"><span class="lineNum">     626</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :   MBO_ASSIGN_OR_RETURN(const std::string header, ReadHeader(path));</span></span>
+<span id="L627"><span class="lineNum">     627</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 19 times"> + </span>]:<span class="tlaGNC">          19 :   MBO_ASSIGN_OR_RETURN(const WholePhar whole, ParseWholePharLayout(header));</span></span>
+<span id="L628"><span class="lineNum">     628</span>   [<span class="tlaGBC" title="branch 0 was taken 19 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaGBC" title="branch 3 was taken 17 times"> + </span> :<span class="tlaGNC">          19 :   if (!HasStoredStub(whole.entries) &amp;&amp; NormalizeMemberName(member) == kPharStubMember) {</span></span>
 <span class="lineNum">        </span>          <span class="tlaGBC" title="branch 4 was taken 2 times"> + </span><span class="tlaGBC" title="branch 5 was taken 17 times"> + </span>]
-<span id="L628"><span class="lineNum">     628</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           2 :     MBO_RETURN_IF_ERROR(CheckLimit(whole.manifest_length_at, max_bytes, member));</span></span>
-<span id="L629"><span class="lineNum">     629</span>                 :<span class="tlaGNC">           2 :     return ReadFileRange(path, 0, whole.manifest_length_at);</span></span>
-<span id="L630"><span class="lineNum">     630</span>                 :             :   }</span>
-<span id="L631"><span class="lineNum">     631</span>                 :<span class="tlaGNC">          17 :   const std::vector&lt;Entry&gt;&amp; entries = whole.entries;</span></span>
-<span id="L632"><span class="lineNum">     632</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          17 :   MBO_ASSIGN_OR_RETURN(const std::reference_wrapper&lt;const Entry&gt; entry_ref, FindEntry(entries, member));</span></span>
-<span id="L633"><span class="lineNum">     633</span>                 :<span class="tlaGNC">          15 :   const Entry&amp; entry = entry_ref.get();</span></span>
-<span id="L634"><span class="lineNum">     634</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="branch 2 was taken 14 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">          15 :   MBO_RETURN_IF_ERROR(CheckLimit(static_cast&lt;std::uint64_t&gt;(entry.member.size), max_bytes, member));</span></span>
-<span id="L635"><span class="lineNum">     635</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="branch 2 was taken 14 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          14 :   MBO_RETURN_IF_ERROR(CheckLimit(entry.stored_size, max_bytes, member));</span></span>
-<span id="L636"><span class="lineNum">     636</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          28 :   MBO_ASSIGN_OR_RETURN(</span></span>
-<span id="L637"><span class="lineNum">     637</span>                 :             :       const std::string content, ReadFileRange(path, entry.data_offset, static_cast&lt;std::size_t&gt;(entry.stored_size)));</span>
-<span id="L638"><span class="lineNum">     638</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          14 :   if (content.size() &lt; entry.stored_size) {</span></span>
-<span id="L639"><span class="lineNum">     639</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(absl::StrCat(&quot;phar member data runs past the end of the container: &quot;, member));</span></span>
-<span id="L640"><span class="lineNum">     640</span>                 :             :   }</span>
-<span id="L641"><span class="lineNum">     641</span>                 :<span class="tlaGNC">          14 :   return Decompress(entry, content, member);</span></span>
-<span id="L642"><span class="lineNum">     642</span>                 :<span class="tlaGNC">          19 : }</span></span>
-<span id="L643"><span class="lineNum">     643</span>                 :             : </span>
-<span id="L644"><span class="lineNum">     644</span>                 :             : }  // namespace xff::archive</span>
+<span id="L629"><span class="lineNum">     629</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 2 times"> + </span><span class="tlaGBC" title="branch 2 was taken 2 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           2 :     MBO_RETURN_IF_ERROR(CheckLimit(whole.manifest_length_at, max_bytes, member));</span></span>
+<span id="L630"><span class="lineNum">     630</span>                 :<span class="tlaGNC">           2 :     return ReadFileRange(path, 0, whole.manifest_length_at);</span></span>
+<span id="L631"><span class="lineNum">     631</span>                 :             :   }</span>
+<span id="L632"><span class="lineNum">     632</span>                 :<span class="tlaGNC">          17 :   const std::vector&lt;Entry&gt;&amp; entries = whole.entries;</span></span>
+<span id="L633"><span class="lineNum">     633</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 15 times"> + </span>]:<span class="tlaGNC">          17 :   MBO_ASSIGN_OR_RETURN(const std::reference_wrapper&lt;const Entry&gt; entry_ref, FindEntry(entries, member));</span></span>
+<span id="L634"><span class="lineNum">     634</span>                 :<span class="tlaGNC">          15 :   const Entry&amp; entry = entry_ref.get();</span></span>
+<span id="L635"><span class="lineNum">     635</span>   [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="branch 2 was taken 14 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1 time"> + </span>]:<span class="tlaGNC">          15 :   MBO_RETURN_IF_ERROR(CheckLimit(static_cast&lt;std::uint64_t&gt;(entry.member.size), max_bytes, member));</span></span>
+<span id="L636"><span class="lineNum">     636</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="branch 2 was taken 14 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          14 :   MBO_RETURN_IF_ERROR(CheckLimit(entry.stored_size, max_bytes, member));</span></span>
+<span id="L637"><span class="lineNum">     637</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          28 :   MBO_ASSIGN_OR_RETURN(</span></span>
+<span id="L638"><span class="lineNum">     638</span>                 :             :       const std::string content, ReadFileRange(path, entry.data_offset, static_cast&lt;std::size_t&gt;(entry.stored_size)));</span>
+<span id="L639"><span class="lineNum">     639</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">          14 :   if (content.size() &lt; entry.stored_size) {</span></span>
+<span id="L640"><span class="lineNum">     640</span>                 :<span class="tlaUNC">           0 :     return absl::DataLossError(absl::StrCat(&quot;phar member data runs past the end of the container: &quot;, member));</span></span>
+<span id="L641"><span class="lineNum">     641</span>                 :             :   }</span>
+<span id="L642"><span class="lineNum">     642</span>                 :<span class="tlaGNC">          14 :   return Decompress(entry, content, member);</span></span>
+<span id="L643"><span class="lineNum">     643</span>                 :<span class="tlaGNC">          19 : }</span></span>
+<span id="L644"><span class="lineNum">     644</span>                 :             : </span>
+<span id="L645"><span class="lineNum">     645</span>                 :             : }  // namespace xff::archive</span>
         </pre>
               </td>
             </tr>
