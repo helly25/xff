@@ -496,7 +496,9 @@ std::pair<std::string, std::string> DepthBucket(int depth) {
 // field is unavailable (a numeric lines bucket for a non-regular or binary file). Categorical
 // buckets reuse SummaryKey; numeric buckets range-bucket a field.
 std::optional<std::pair<std::string, std::string>> HistBucketKey(
-    const HistogramSpec& spec, const Visit& visit, const vfs::FileSystem& fs) {
+    const HistogramSpec& spec,
+    const Visit& visit,
+    const vfs::FileSystem& fs) {
   switch (spec.bucket) {
     case HistBucket::kOverall:
     case HistBucket::kType:
@@ -2959,13 +2961,15 @@ void FeedHistograms(
     std::optional<std::uint64_t> value = 1;  // kCount: each match contributes one
     if (spec.agg != HistAgg::kCount) {
       value = spec.metric == HistMetric::kSize ? std::optional<std::uint64_t>(visit.metadata.size)
-              : visit.metadata.type == vfs::FileType::kRegular
+                                               : visit.metadata.type == vfs::FileType::kRegular
                   ? [&]() -> std::optional<std::uint64_t> {
-                      const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
-                      if (!content.ok()) return std::nullopt;
-                      return content::ContentLineCount(*content);
-                    }()
-                  : std::nullopt;  // kLines: content-derived, absent for a non-regular or binary file
+        const absl::StatusOr<std::string> content = fs.ReadContent(visit.path);
+        if (!content.ok()) {
+          return std::nullopt;
+        }
+        return content::ContentLineCount(*content);
+      }()
+          : std::nullopt;  // kLines: content-derived, absent for a non-regular or binary file
     }
     if (!value.has_value()) {
       continue;
