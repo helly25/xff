@@ -747,6 +747,15 @@ TEST_F(RunTest, DiffPolarityIsTrueWhenEqual) {
   EXPECT_THAT(RunExpr({"-name", "a.txt", "!", "-diff:none", Path("other.txt"), "-print"}), ElementsAre(Path("a.txt")));
   // A missing / unreadable target counts as differing (false).
   EXPECT_THAT(RunExpr({"-name", "a.txt", "-diff:none", Path("nope.txt"), "-print"}), IsEmpty());
+
+  // Binary inputs use byte equality rather than text diffing.
+  {
+    std::ofstream binary(root_ / "binary-twin.txt", std::ios::binary);
+    binary << "a\0same";
+  }
+  EXPECT_THAT(
+      RunExpr({"-name", "binary-twin.txt", "-diff:none", Path("binary-twin.txt"), "-print"}),
+      ElementsAre(Path("binary-twin.txt")));
 }
 
 TEST_F(RunTest, DiffIgnoreNormalizesComparison) {
