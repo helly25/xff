@@ -3039,7 +3039,7 @@ void FeedCollections(
           .defines = defaults.defines,
       };
       FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
-      FeedHistograms(histograms, histogram_cells, visit, visit.fs.has_value() ? *visit.fs : defaults.fs);
+      FeedHistograms(histograms, histogram_cells, visit, *visit.fs);
     }
   }
 }
@@ -3867,7 +3867,7 @@ RunResult RunFind(
             .outputs = outputs,
             .fuzzy_score = fuzzy_score};
         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
-        FeedHistograms(histograms, histogram_cells, visit, visit.fs.has_value() ? *visit.fs : walk_fs);
+        FeedHistograms(histograms, histogram_cells, visit, *visit.fs);
       }
     } else if (matched && implicit_print && (!max_results->has_value() || listed_results < **max_results)) {
       ++listed_results;
@@ -4307,7 +4307,7 @@ RunResult RunFind(
       FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);
     };
     const auto feed_histograms = [&](const Visit& visit) {
-      FeedHistograms(histograms, histogram_cells, visit, visit.fs.has_value() ? *visit.fs : walk_fs);
+      FeedHistograms(histograms, histogram_cells, visit, *visit.fs);
     };
     // Feed one logical unit (a set, or a non-shard file) into both sinks; `shard_count` -> {shard}.
     const auto feed_unit = [&](const Visit& visit, std::optional<std::int64_t> shard_count) {
@@ -4345,8 +4345,9 @@ RunResult RunFind(
         }
       }
       group.sets = shard::GroupShards(shard_files, *shard_matcher, shard_dedup);
-      const auto synth = [](const ShardBufFile& rec, std::string_view path, const vfs::Metadata& md) {
-        return Visit{.path = path, .name = rec.name, .root = rec.root, .depth = rec.depth, .metadata = md};
+      const auto synth = [&walk_fs](const ShardBufFile& rec, std::string_view path, const vfs::Metadata& md) {
+        return Visit{
+            .path = path, .name = rec.name, .root = rec.root, .depth = rec.depth, .metadata = md, .fs = walk_fs};
       };
       for (const shard::ShardSet& set : group.sets) {
         // --shards-dedup=error: a same-index duplicate is ambiguous, so report it and fail the run.
