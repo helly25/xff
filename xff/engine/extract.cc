@@ -50,9 +50,9 @@ constexpr std::uint64_t kMaxFreeSpaceShareDivisor = 4;
 
 // The bytes free in `directory`, or nullopt when it cannot be queried (it does not exist, or is not
 // readable) - which is also the answer for "do not use this candidate".
-std::optional<std::uint64_t> FreeBytes(const std::string& directory) {
+std::optional<std::uint64_t> FreeBytes(std::string_view directory) {
   struct ::statvfs stats{};
-  if (::statvfs(directory.c_str(), &stats) != 0) {
+  if (::statvfs(std::string(directory).c_str(), &stats) != 0) {
     return std::nullopt;
   }
   // f_bavail is the space available to an unprivileged writer, which is what we are.
@@ -62,7 +62,8 @@ std::optional<std::uint64_t> FreeBytes(const std::string& directory) {
 // Whether `directory` is a directory this process can create in.
 bool Writable(const std::string& directory) {
   std::error_code error;
-  return stdfs::is_directory(directory, error) && ::access(directory.c_str(), W_OK | X_OK) == 0;
+  return stdfs::is_directory(std::string(directory), error)
+         && ::access(std::string(directory).c_str(), W_OK | X_OK) == 0;
 }
 
 // The member's own final component, which becomes the temporary file's name. Both separators are

@@ -43,7 +43,7 @@ void WriteToStdout(std::string_view text) {
 // `text` on the child's stdin. Returns false if the pager could not be started (the
 // caller then falls back to stdout); a pager that starts and then exits early is a
 // success (the user quit less), not a failure.
-[[nodiscard]] bool PipeThroughPager(std::string_view text, const std::string& command) {
+[[nodiscard]] bool PipeThroughPager(std::string_view text, std::string_view command) {
   std::array<int, 2> fds{};
   // macOS has no pipe2(), so the CLOEXEC flag is not available here; the child closes
   // both raw ends explicitly before exec, so nothing leaks.
@@ -65,7 +65,7 @@ void WriteToStdout(std::string_view text) {
     ::close(write_fd);
     // execlp needs a C string at the exec boundary; `sh -c` handles args / pipelines.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-    ::execlp("sh", "sh", "-c", command.c_str(), static_cast<char*>(nullptr));
+    ::execlp("sh", "sh", "-c", std::string(command).c_str(), static_cast<char*>(nullptr));
     ::_exit(127);  // exec failed: nothing was consumed yet, so the parent still has the text
   }
   // Parent: feed the text to the pager, ignoring SIGPIPE so an early quit (a closed read
@@ -220,7 +220,7 @@ PagerStream::PagerStream(const PagerDecision& decision) {
     ::close(read_fd);
     ::close(write_fd);
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg,hicpp-vararg)
-    ::execlp("sh", "sh", "-c", command.c_str(), static_cast<char*>(nullptr));
+    ::execlp("sh", "sh", "-c", std::string(command).c_str(), static_cast<char*>(nullptr));
     ::_exit(127);
   }
   // Parent: from here on, THIS process's stdout is the pipe, so every writer is paged without

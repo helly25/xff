@@ -49,7 +49,7 @@ std::string SlugFor(const RefTarget& target) {
 
 }  // namespace
 
-std::string MarkdownRefLink(const RefTarget& target, const std::string& label) {
+std::string MarkdownRefLink(const RefTarget& target, std::string_view label) {
   const std::string_view text = label.empty() ? target.id : label;
   switch (target.kind) {
     case RefTarget::Kind::kUrl: return absl::StrCat("[", text, "](", target.id, ")");

@@ -198,10 +198,10 @@ class FnmatchBackend final : public RegexBackend {
   }
 
  private:
-  bool Fnmatch(const std::string& pattern, std::string_view text) const {
+  bool Fnmatch(std::string_view pattern, std::string_view text) const {
     // fnmatch needs NUL-terminated C strings; `text` may not be, so materialize it (per-entry cost,
     // matching the evaluator's own -name/-path helper).
-    return ::fnmatch(pattern.c_str(), std::string(text).c_str(), flags_) == 0;
+    return ::fnmatch(std::string(pattern).c_str(), std::string(text).c_str(), flags_) == 0;
   }
 
   std::string pattern_;
