@@ -59,7 +59,7 @@ class MarkdownBackend final : public HelpBackend {
 // The Markdown form of an inline cross-reference: `[label](url)` for a URL,
 // `[label](#slug)` for an in-document target, and `label` (e.g. `find(1)`) for a man
 // page. Exposed for testing.
-[[nodiscard]] std::string MarkdownRefLink(const RefTarget& target, std::string_view label);
+[[nodiscard]] std::string MarkdownRefLink(const RefTarget& target, const std::string& label);
 
 }  // namespace xff::cli
 

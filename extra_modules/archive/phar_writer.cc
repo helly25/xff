@@ -112,7 +112,7 @@ std::string_view SignatureName(std::uint32_t type) {
   }
 }
 
-absl::StatusOr<std::string> ReadWholeFile(std::string_view path) {
+absl::StatusOr<std::string> ReadWholeFile(const std::string& path) {
   // XFF_HOST_IO: PHAR writer consumes the explicitly selected host input file.
   std::ifstream in(path, std::ios::binary);
   if (!in) {
