@@ -1671,8 +1671,7 @@ TEST_F(RunTest, HistogramLineRangesIgnoreDirectoriesAndBucketRegularFileLineCoun
 
 TEST_F(RunTest, MissingPackOptionFileFailsBeforeTraversal) {
   EXPECT_THAT(
-      RunArgvRecords({"--pack-option=@" + Path("absent-pack-options.json"), root_.string(), "-print"}),
-      IsEmpty());
+      RunArgvRecords({"--pack-option=@" + Path("absent-pack-options.json"), root_.string(), "-print"}), IsEmpty());
   EXPECT_THAT(last_errors_, Eq(2));
 }
 
