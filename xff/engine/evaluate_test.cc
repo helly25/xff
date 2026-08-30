@@ -842,6 +842,12 @@ TEST_F(EvaluateTest, ContentMatchesLiteralSubstring) {
   EXPECT_FALSE(Match({"-content", "q.ick"}, visit));
 }
 
+TEST_F(EvaluateTest, DiffTreatsUnreadableSourceAsDifferent) {
+  vfs::Metadata md;
+  const Visit visit = MakeVisit("missing-source", "missing-source", vfs::FileType::kRegular, md);
+  EXPECT_FALSE(Match({"-diff:none", "missing-target"}, visit));
+}
+
 TEST_F(EvaluateTest, IcontentFoldsCase) {
   const std::string path = WriteContentFile("fold.txt", "Hello World");
   vfs::Metadata md;
