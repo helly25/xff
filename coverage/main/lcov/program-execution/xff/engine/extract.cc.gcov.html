@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 16:43:58</td>
+            <td class="headerValue">2026-08-30 17:39:42</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -200,52 +200,56 @@
 <span id="L117"><span class="lineNum">     117</span>                 :             :   // and a temporary file that outlives the run is not worth failing over.</span>
 <span id="L118"><span class="lineNum">     118</span>         [<span class="tlaGBC" title="branch 0 was taken 12 times"> + </span><span class="tlaGBC" title="branch 1 was taken 731 times"> + </span>]:<span class="tlaGNC">         743 :   for (const std::string&amp; path : held_) {</span></span>
 <span id="L119"><span class="lineNum">     119</span>                 :<span class="tlaGNC">          12 :     std::error_code error;</span></span>
-<span id="L120"><span class="lineNum">     120</span>                 :<span class="tlaGNC">          12 :     stdfs::remove_all(stdfs::path(path).parent_path(), error);</span></span>
-<span id="L121"><span class="lineNum">     121</span>                 :             :   }</span>
-<span id="L122"><span class="lineNum">     122</span>                 :<span class="tlaGNC">         731 : }</span></span>
-<span id="L123"><span class="lineNum">     123</span>                 :             : </span>
-<span id="L124"><span class="lineNum">     124</span>                 :<span class="tlaGNC">          14 : absl::StatusOr&lt;std::string&gt; ExtractedMembers::Extract(const vfs::FileSystem&amp; fs, std::string_view member) {</span></span>
-<span id="L125"><span class="lineNum">     125</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          14 :   MBO_ASSIGN_OR_RETURN(const std::string content, fs.ReadContent(member));</span></span>
-<span id="L126"><span class="lineNum">     126</span>                 :<span class="tlaGNC">          13 :   std::error_code error;</span></span>
-<span id="L127"><span class="lineNum">     127</span>                 :             :   // The directory is chosen per member, because the choice depends on the member's size (see</span>
-<span id="L128"><span class="lineNum">     128</span>                 :             :   // ChooseExtractDirectory): a small member goes to a memory-backed directory, a huge one to disk.</span>
-<span id="L129"><span class="lineNum">     129</span>                 :<span class="tlaGNC">          26 :   const stdfs::path dir = stdfs::path(ChooseExtractDirectory(content.size(), DefaultExtractDirectories()))</span></span>
-<span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">          39 :                           / absl::StrCat(&quot;xff-&quot;, static_cast&lt;std::int64_t&gt;(::getpid()), &quot;-&quot;, next_++);</span></span>
-<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          13 :   if (!stdfs::create_directory(dir, error)) {</span></span>
-<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(absl::StrCat(&quot;cannot create &quot;, dir.string(), &quot;: &quot;, error.message()));</span></span>
-<span id="L133"><span class="lineNum">     133</span>                 :             :   }</span>
-<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaGNC">          13 :   const stdfs::path path = dir / std::string(MemberName(member));</span></span>
-<span id="L135"><span class="lineNum">     135</span>                 :             :   {</span>
-<span id="L136"><span class="lineNum">     136</span>                 :             :     // XFF_HOST_IO: extraction deliberately materializes a virtual member for an external process.</span>
-<span id="L137"><span class="lineNum">     137</span>                 :<span class="tlaGNC">          13 :     std::ofstream out(path, std::ios::binary | std::ios::trunc);</span></span>
-<span id="L138"><span class="lineNum">     138</span>                 :<span class="tlaGNC">          13 :     out &lt;&lt; content;</span></span>
-<span id="L139"><span class="lineNum">     139</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          13 :     if (!out) {</span></span>
-<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaUNC">           0 :       stdfs::remove_all(dir, error);</span></span>
-<span id="L141"><span class="lineNum">     141</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(absl::StrCat(&quot;cannot write the extracted member to &quot;, path.string()));</span></span>
-<span id="L142"><span class="lineNum">     142</span>                 :             :     }</span>
-<span id="L143"><span class="lineNum">     143</span>         [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          13 :   }</span></span>
-<span id="L144"><span class="lineNum">     144</span>                 :             :   // Owner-only, because the content came out of the user's archive and a shared temporary directory</span>
-<span id="L145"><span class="lineNum">     145</span>                 :             :   // is world-readable by default.</span>
-<span id="L146"><span class="lineNum">     146</span>                 :<span class="tlaGNC">          13 :   stdfs::permissions(path, stdfs::perms::owner_read | stdfs::perms::owner_write, error);</span></span>
-<span id="L147"><span class="lineNum">     147</span>                 :<span class="tlaGNC">          13 :   held_.push_back(path.string());</span></span>
-<span id="L148"><span class="lineNum">     148</span>                 :<span class="tlaGNC">          13 :   return held_.back();</span></span>
-<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">          14 : }</span></span>
-<span id="L150"><span class="lineNum">     150</span>                 :             : </span>
-<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">           2 : void ExtractedMembers::Release(std::string_view path) {</span></span>
-<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">           2 :   const auto it = absl::c_find(held_, path);</span></span>
-<span id="L153"><span class="lineNum">     153</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           2 :   if (it == held_.end()) {</span></span>
-<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
-<span id="L155"><span class="lineNum">     155</span>                 :             :   }</span>
-<span id="L156"><span class="lineNum">     156</span>                 :<span class="tlaGNC">           1 :   std::error_code error;</span></span>
-<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">           1 :   stdfs::remove_all(stdfs::path(*it).parent_path(), error);</span></span>
-<span id="L158"><span class="lineNum">     158</span>                 :<span class="tlaGNC">           1 :   held_.erase(it);</span></span>
-<span id="L159"><span class="lineNum">     159</span>                 :             : }</span>
-<span id="L160"><span class="lineNum">     160</span>                 :             : </span>
-<span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">           4 : std::vector&lt;std::string&gt; ExtractedMembers::Held() const {</span></span>
-<span id="L162"><span class="lineNum">     162</span>                 :<span class="tlaGNC">           4 :   return held_;</span></span>
+<span id="L120"><span class="lineNum">     120</span>                 :             :     // XFF_HOST_IO: extraction removes its explicitly selected temporary parent.</span>
+<span id="L121"><span class="lineNum">     121</span>                 :<span class="tlaGNC">          12 :     stdfs::remove_all(stdfs::path(path).parent_path(), error);</span></span>
+<span id="L122"><span class="lineNum">     122</span>                 :             :   }</span>
+<span id="L123"><span class="lineNum">     123</span>                 :<span class="tlaGNC">         731 : }</span></span>
+<span id="L124"><span class="lineNum">     124</span>                 :             : </span>
+<span id="L125"><span class="lineNum">     125</span>                 :<span class="tlaGNC">          14 : absl::StatusOr&lt;std::string&gt; ExtractedMembers::Extract(const vfs::FileSystem&amp; fs, std::string_view member) {</span></span>
+<span id="L126"><span class="lineNum">     126</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          14 :   MBO_ASSIGN_OR_RETURN(const std::string content, fs.ReadContent(member));</span></span>
+<span id="L127"><span class="lineNum">     127</span>                 :<span class="tlaGNC">          13 :   std::error_code error;</span></span>
+<span id="L128"><span class="lineNum">     128</span>                 :             :   // The directory is chosen per member, because the choice depends on the member's size (see</span>
+<span id="L129"><span class="lineNum">     129</span>                 :             :   // ChooseExtractDirectory): a small member goes to a memory-backed directory, a huge one to disk.</span>
+<span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">          26 :   const stdfs::path dir = stdfs::path(ChooseExtractDirectory(content.size(), DefaultExtractDirectories()))</span></span>
+<span id="L131"><span class="lineNum">     131</span>                 :<span class="tlaGNC">          39 :                           / absl::StrCat(&quot;xff-&quot;, static_cast&lt;std::int64_t&gt;(::getpid()), &quot;-&quot;, next_++);</span></span>
+<span id="L132"><span class="lineNum">     132</span>                 :             :   // XFF_HOST_IO: extraction creates its explicitly selected temporary directory.</span>
+<span id="L133"><span class="lineNum">     133</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          13 :   if (!stdfs::create_directory(dir, error)) {</span></span>
+<span id="L134"><span class="lineNum">     134</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(absl::StrCat(&quot;cannot create &quot;, dir.string(), &quot;: &quot;, error.message()));</span></span>
+<span id="L135"><span class="lineNum">     135</span>                 :             :   }</span>
+<span id="L136"><span class="lineNum">     136</span>                 :<span class="tlaGNC">          13 :   const stdfs::path path = dir / std::string(MemberName(member));</span></span>
+<span id="L137"><span class="lineNum">     137</span>                 :             :   {</span>
+<span id="L138"><span class="lineNum">     138</span>                 :             :     // XFF_HOST_IO: extraction deliberately materializes a virtual member for an external process.</span>
+<span id="L139"><span class="lineNum">     139</span>                 :<span class="tlaGNC">          13 :     std::ofstream out(path, std::ios::binary | std::ios::trunc);</span></span>
+<span id="L140"><span class="lineNum">     140</span>                 :<span class="tlaGNC">          13 :     out &lt;&lt; content;</span></span>
+<span id="L141"><span class="lineNum">     141</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 13 times"> + </span>]:<span class="tlaGNC">          13 :     if (!out) {</span></span>
+<span id="L142"><span class="lineNum">     142</span>                 :             :       // XFF_HOST_IO: extraction removes its explicitly selected temporary directory.</span>
+<span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaUNC">           0 :       stdfs::remove_all(dir, error);</span></span>
+<span id="L144"><span class="lineNum">     144</span>                 :<span class="tlaUNC">           0 :       return absl::UnavailableError(absl::StrCat(&quot;cannot write the extracted member to &quot;, path.string()));</span></span>
+<span id="L145"><span class="lineNum">     145</span>                 :             :     }</span>
+<span id="L146"><span class="lineNum">     146</span>         [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaUNC" title="branch 1 was not taken"> - </span>]:<span class="tlaGNC">          13 :   }</span></span>
+<span id="L147"><span class="lineNum">     147</span>                 :             :   // Owner-only, because the content came out of the user's archive and a shared temporary directory</span>
+<span id="L148"><span class="lineNum">     148</span>                 :             :   // is world-readable by default.</span>
+<span id="L149"><span class="lineNum">     149</span>                 :<span class="tlaGNC">          13 :   stdfs::permissions(path, stdfs::perms::owner_read | stdfs::perms::owner_write, error);</span></span>
+<span id="L150"><span class="lineNum">     150</span>                 :<span class="tlaGNC">          13 :   held_.push_back(path.string());</span></span>
+<span id="L151"><span class="lineNum">     151</span>                 :<span class="tlaGNC">          13 :   return held_.back();</span></span>
+<span id="L152"><span class="lineNum">     152</span>                 :<span class="tlaGNC">          14 : }</span></span>
+<span id="L153"><span class="lineNum">     153</span>                 :             : </span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">           2 : void ExtractedMembers::Release(std::string_view path) {</span></span>
+<span id="L155"><span class="lineNum">     155</span>                 :<span class="tlaGNC">           2 :   const auto it = absl::c_find(held_, path);</span></span>
+<span id="L156"><span class="lineNum">     156</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">           2 :   if (it == held_.end()) {</span></span>
+<span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">           1 :     return;</span></span>
+<span id="L158"><span class="lineNum">     158</span>                 :             :   }</span>
+<span id="L159"><span class="lineNum">     159</span>                 :<span class="tlaGNC">           1 :   std::error_code error;</span></span>
+<span id="L160"><span class="lineNum">     160</span>                 :             :   // XFF_HOST_IO: extraction removes its explicitly selected temporary parent.</span>
+<span id="L161"><span class="lineNum">     161</span>                 :<span class="tlaGNC">           1 :   stdfs::remove_all(stdfs::path(*it).parent_path(), error);</span></span>
+<span id="L162"><span class="lineNum">     162</span>                 :<span class="tlaGNC">           1 :   held_.erase(it);</span></span>
 <span id="L163"><span class="lineNum">     163</span>                 :             : }</span>
 <span id="L164"><span class="lineNum">     164</span>                 :             : </span>
-<span id="L165"><span class="lineNum">     165</span>                 :             : }  // namespace xff::engine</span>
+<span id="L165"><span class="lineNum">     165</span>                 :<span class="tlaGNC">           4 : std::vector&lt;std::string&gt; ExtractedMembers::Held() const {</span></span>
+<span id="L166"><span class="lineNum">     166</span>                 :<span class="tlaGNC">           4 :   return held_;</span></span>
+<span id="L167"><span class="lineNum">     167</span>                 :             : }</span>
+<span id="L168"><span class="lineNum">     168</span>                 :             : </span>
+<span id="L169"><span class="lineNum">     169</span>                 :             : }  // namespace xff::engine</span>
         </pre>
               </td>
             </tr>

@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 16:43:58</td>
+            <td class="headerValue">2026-08-30 17:39:42</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -338,18 +338,21 @@
 <span id="L254"><span class="lineNum">     254</span>                 :<span class="tlaGNC">          14 :   const stdfs::path temporary = stdfs::path(target).replace_filename(target.filename().string() + &quot;.xff-rewrite&quot;);</span></span>
 <span id="L255"><span class="lineNum">     255</span>   [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span><span class="tlaGBC" title="branch 2 was taken 7 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">           7 :   MBO_RETURN_IF_ERROR(WriteWholeFile(temporary, rebuilt));</span></span>
 <span id="L256"><span class="lineNum">     256</span>                 :<span class="tlaGNC">           7 :   std::error_code error;</span></span>
-<span id="L257"><span class="lineNum">     257</span>                 :<span class="tlaGNC">           7 :   const stdfs::perms mode = stdfs::status(target, error).permissions();</span></span>
-<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">           7 :   stdfs::rename(temporary, target, error);</span></span>
-<span id="L259"><span class="lineNum">     259</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           7 :   if (error) {</span></span>
-<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaUNC">           0 :     std::error_code ignored;</span></span>
-<span id="L261"><span class="lineNum">     261</span>                 :<span class="tlaUNC">           0 :     stdfs::remove(temporary, ignored);</span></span>
-<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(absl::StrCat(&quot;cannot replace &quot;, path, &quot;: &quot;, error.message()));</span></span>
-<span id="L263"><span class="lineNum">     263</span>                 :             :   }</span>
-<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaGNC">           7 :   stdfs::permissions(target, mode, error);  // the replacement is the same file to its user</span></span>
-<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaGNC">           7 :   return absl::OkStatus();</span></span>
-<span id="L266"><span class="lineNum">     266</span>                 :<span class="tlaGNC">          12 : }</span></span>
-<span id="L267"><span class="lineNum">     267</span>                 :             : </span>
-<span id="L268"><span class="lineNum">     268</span>                 :             : }  // namespace xff::archive</span>
+<span id="L257"><span class="lineNum">     257</span>                 :             :   // XFF_HOST_IO: PHAR writer inspects the explicitly selected output path metadata.</span>
+<span id="L258"><span class="lineNum">     258</span>                 :<span class="tlaGNC">           7 :   const stdfs::perms mode = stdfs::status(target, error).permissions();</span></span>
+<span id="L259"><span class="lineNum">     259</span>                 :             :   // XFF_HOST_IO: PHAR writer publishes its explicitly selected output file.</span>
+<span id="L260"><span class="lineNum">     260</span>                 :<span class="tlaGNC">           7 :   stdfs::rename(temporary, target, error);</span></span>
+<span id="L261"><span class="lineNum">     261</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">           7 :   if (error) {</span></span>
+<span id="L262"><span class="lineNum">     262</span>                 :<span class="tlaUNC">           0 :     std::error_code ignored;</span></span>
+<span id="L263"><span class="lineNum">     263</span>                 :             :     // XFF_HOST_IO: PHAR writer removes its explicitly selected temporary output.</span>
+<span id="L264"><span class="lineNum">     264</span>                 :<span class="tlaUNC">           0 :     stdfs::remove(temporary, ignored);</span></span>
+<span id="L265"><span class="lineNum">     265</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(absl::StrCat(&quot;cannot replace &quot;, path, &quot;: &quot;, error.message()));</span></span>
+<span id="L266"><span class="lineNum">     266</span>                 :             :   }</span>
+<span id="L267"><span class="lineNum">     267</span>                 :<span class="tlaGNC">           7 :   stdfs::permissions(target, mode, error);  // the replacement is the same file to its user</span></span>
+<span id="L268"><span class="lineNum">     268</span>                 :<span class="tlaGNC">           7 :   return absl::OkStatus();</span></span>
+<span id="L269"><span class="lineNum">     269</span>                 :<span class="tlaGNC">          12 : }</span></span>
+<span id="L270"><span class="lineNum">     270</span>                 :             : </span>
+<span id="L271"><span class="lineNum">     271</span>                 :             : }  // namespace xff::archive</span>
         </pre>
               </td>
             </tr>

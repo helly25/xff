@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 16:43:58</td>
+            <td class="headerValue">2026-08-30 17:39:42</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -671,22 +671,25 @@
 <span id="L587"><span class="lineNum">     587</span>         [<span class="tlaGBC" title="branch 0 was taken 134 times"> + </span><span class="tlaGBC" title="branch 1 was taken 71 times"> + </span>]:<span class="tlaGNC">         205 :     for (const PackEntry&amp; entry : entries) {</span></span>
 <span id="L588"><span class="lineNum">     588</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 131 times"> + </span>]:<span class="tlaGNC">         134 :       if (const absl::Status status = WriteOne(*writer, entry); !status.ok()) {</span></span>
 <span id="L589"><span class="lineNum">     589</span>                 :<span class="tlaGNC">           3 :         std::error_code ignored;</span></span>
-<span id="L590"><span class="lineNum">     590</span>                 :<span class="tlaGNC">           3 :         stdfs::remove(temporary, ignored);</span></span>
-<span id="L591"><span class="lineNum">     591</span>                 :<span class="tlaGNC">           3 :         return status;</span></span>
-<span id="L592"><span class="lineNum">     592</span>         [<span class="tlaGBC" title="branch 0 was taken 131 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">         134 :       }</span></span>
-<span id="L593"><span class="lineNum">     593</span>                 :             :     }</span>
-<span id="L594"><span class="lineNum">     594</span>   [<span class="tlaGBC" title="branch 0 was taken 71 times"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="branch 2 was taken 71 times"> + </span><span class="tlaGBC" title="branch 3 was taken 18 times"> + </span>]:<span class="tlaGNC">         107 :   }  // the deleter closes the writer, which is when zip writes its directory</span></span>
-<span id="L595"><span class="lineNum">     595</span>                 :<span class="tlaGNC">          71 :   std::error_code error;</span></span>
-<span id="L596"><span class="lineNum">     596</span>                 :<span class="tlaGNC">          71 :   stdfs::rename(temporary, target, error);</span></span>
-<span id="L597"><span class="lineNum">     597</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 71 times"> + </span>]:<span class="tlaGNC">          71 :   if (error) {</span></span>
-<span id="L598"><span class="lineNum">     598</span>                 :<span class="tlaUNC">           0 :     std::error_code ignored;</span></span>
-<span id="L599"><span class="lineNum">     599</span>                 :<span class="tlaUNC">           0 :     stdfs::remove(temporary, ignored);</span></span>
-<span id="L600"><span class="lineNum">     600</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(absl::StrCat(&quot;cannot place '&quot;, path, &quot;': &quot;, error.message()));</span></span>
-<span id="L601"><span class="lineNum">     601</span>                 :             :   }</span>
-<span id="L602"><span class="lineNum">     602</span>                 :<span class="tlaGNC">          71 :   return absl::OkStatus();</span></span>
-<span id="L603"><span class="lineNum">     603</span>                 :<span class="tlaGNC">          89 : }</span></span>
-<span id="L604"><span class="lineNum">     604</span>                 :             : </span>
-<span id="L605"><span class="lineNum">     605</span>                 :             : }  // namespace xff::archive</span>
+<span id="L590"><span class="lineNum">     590</span>                 :             :         // XFF_HOST_IO: archive pack removes its explicitly selected temporary output.</span>
+<span id="L591"><span class="lineNum">     591</span>                 :<span class="tlaGNC">           3 :         stdfs::remove(temporary, ignored);</span></span>
+<span id="L592"><span class="lineNum">     592</span>                 :<span class="tlaGNC">           3 :         return status;</span></span>
+<span id="L593"><span class="lineNum">     593</span>         [<span class="tlaGBC" title="branch 0 was taken 131 times"> + </span><span class="tlaGBC" title="branch 1 was taken 3 times"> + </span>]:<span class="tlaGNC">         134 :       }</span></span>
+<span id="L594"><span class="lineNum">     594</span>                 :             :     }</span>
+<span id="L595"><span class="lineNum">     595</span>   [<span class="tlaGBC" title="branch 0 was taken 71 times"> + </span><span class="tlaGBC" title="branch 1 was taken 18 times"> + </span><span class="tlaGBC" title="branch 2 was taken 71 times"> + </span><span class="tlaGBC" title="branch 3 was taken 18 times"> + </span>]:<span class="tlaGNC">         107 :   }  // the deleter closes the writer, which is when zip writes its directory</span></span>
+<span id="L596"><span class="lineNum">     596</span>                 :<span class="tlaGNC">          71 :   std::error_code error;</span></span>
+<span id="L597"><span class="lineNum">     597</span>                 :             :   // XFF_HOST_IO: archive pack publishes its explicitly selected output file.</span>
+<span id="L598"><span class="lineNum">     598</span>                 :<span class="tlaGNC">          71 :   stdfs::rename(temporary, target, error);</span></span>
+<span id="L599"><span class="lineNum">     599</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 71 times"> + </span>]:<span class="tlaGNC">          71 :   if (error) {</span></span>
+<span id="L600"><span class="lineNum">     600</span>                 :<span class="tlaUNC">           0 :     std::error_code ignored;</span></span>
+<span id="L601"><span class="lineNum">     601</span>                 :             :     // XFF_HOST_IO: archive pack removes its explicitly selected temporary output.</span>
+<span id="L602"><span class="lineNum">     602</span>                 :<span class="tlaUNC">           0 :     stdfs::remove(temporary, ignored);</span></span>
+<span id="L603"><span class="lineNum">     603</span>                 :<span class="tlaUNC">           0 :     return absl::UnavailableError(absl::StrCat(&quot;cannot place '&quot;, path, &quot;': &quot;, error.message()));</span></span>
+<span id="L604"><span class="lineNum">     604</span>                 :             :   }</span>
+<span id="L605"><span class="lineNum">     605</span>                 :<span class="tlaGNC">          71 :   return absl::OkStatus();</span></span>
+<span id="L606"><span class="lineNum">     606</span>                 :<span class="tlaGNC">          89 : }</span></span>
+<span id="L607"><span class="lineNum">     607</span>                 :             : </span>
+<span id="L608"><span class="lineNum">     608</span>                 :             : }  // namespace xff::archive</span>
         </pre>
               </td>
             </tr>
