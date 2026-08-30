@@ -50,20 +50,22 @@ constexpr std::uint64_t kMaxFreeSpaceShareDivisor = 4;
 
 // The bytes free in `directory`, or nullopt when it cannot be queried (it does not exist, or is not
 // readable) - which is also the answer for "do not use this candidate".
-std::optional<std::uint64_t> FreeBytes(std::string_view directory) {
+std::optional<std::uint64_t> FreeBytes(const std::string& directory) {
   struct ::statvfs stats{};
-  if (::statvfs(std::string(directory).c_str(), &stats) != 0) {
+  if (::statvfs(directory.c_str(), &stats) != 0) {
     return std::nullopt;
   }
   // f_bavail is the space available to an unprivileged writer, which is what we are.
   return static_cast<std::uint64_t>(stats.f_bavail) * static_cast<std::uint64_t>(stats.f_frsize);
 }
 
-// Whether `directory` is a directory this process can create in.
-bool Writable(const std::string& directory) {
+// Whether `directory` is an existing directory.  We deliberately do not probe it with `access()`:
+// permissions can change between a check and the write, and the write operation reports the real
+// error to the caller.
+bool IsDirectory(const std::string& directory) {
   std::error_code error;
-  return stdfs::is_directory(std::string(directory), error)
-         && ::access(std::string(directory).c_str(), W_OK | X_OK) == 0;
+  // XFF_HOST_IO: extraction inspects its explicitly selected temporary directory.
+  return stdfs::is_directory(directory, error);
 }
 
 // The member's own final component, which becomes the temporary file's name. Both separators are
@@ -99,7 +101,7 @@ std::string ChooseExtractDirectory(std::uint64_t member_size, absl::Span<const s
     return error ? std::string("/tmp") : temporary.string();
   }
   for (const std::string& candidate : candidates.subspan(0, candidates.size() - 1)) {
-    if (!Writable(candidate)) {
+    if (!IsDirectory(candidate)) {
       continue;
     }
     const std::optional<std::uint64_t> free_bytes = FreeBytes(candidate);
