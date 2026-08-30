@@ -62,7 +62,7 @@ std::optional<std::uint64_t> FreeBytes(const std::string& directory) {
 // Whether `directory` is an existing directory.  We deliberately do not probe it with `access()`:
 // permissions can change between a check and the write, and the write operation reports the real
 // error to the caller.
-bool IsDirectory(const std::string& directory) {
+bool IsDirectory(std::string_view directory) {
   std::error_code error;
   // XFF_HOST_IO: extraction inspects its explicitly selected temporary directory.
   return stdfs::is_directory(directory, error);
