@@ -17,6 +17,9 @@
 # `python3` is older does not silently validate against an ancient interpreter.
 default_language_version:
   python: python3.13
+# Run the complete policy/format gate before both commits and pushes. The push stage prevents a
+# locally committed but unchecked change from reaching the remote; CI remains the all-files backstop.
+default_stages: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
