@@ -106,6 +106,13 @@ TEST_F(LocalFsTest, WriteContentReportsOpenFailure) {
       StatusIs(absl::StatusCode::kInternal, HasSubstr("cannot open")));
 }
 
+#if defined(__linux__)
+TEST_F(LocalFsTest, WriteContentReportsWriteFailure) {
+  EXPECT_THAT(
+      local_fs_.WriteContent("/dev/full", "data"), StatusIs(absl::StatusCode::kInternal, HasSubstr("cannot write")));
+}
+#endif
+
 TEST_F(LocalFsTest, ReadDirTagsEntriesAsWritableLocal) {
   MBO_ASSERT_OK_AND_ASSIGN(const auto entries, local_fs_.ReadDir(root_.string()));
   for (const Entry& entry : entries) {

@@ -120,6 +120,11 @@ TEST_F(VfsSeamTest, AReadOnlyBackendRefusesRemovalRatherThanSilentlyIgnoringIt) 
   EXPECT_THAT(fs.Remove("/box/member.txt"), StatusIs(absl::StatusCode::kPermissionDenied));
 }
 
+TEST_F(VfsSeamTest, AReadOnlyBackendRefusesWritingByDefault) {
+  const ReadOnlyFakeFs fs;
+  EXPECT_THAT(fs.WriteContent("/box/member.txt", "content"), StatusIs(absl::StatusCode::kUnimplemented));
+}
+
 TEST_F(VfsSeamTest, EntryAndMetadataDefaultToTheRealFilesystemCase) {
   // Defaults matter: a backend fills in only what it knows, so an unset field must mean "ordinary
   // real-filesystem entry" - in particular read_only false, so nothing accidentally treats a real
