@@ -40,6 +40,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <fstream>
 #include <limits>
 #include <optional>
 #include <span>
@@ -238,6 +239,20 @@ absl::Status LocalFs::Remove(std::string_view path) const {
   const std::string path_str(path);
   if (::remove(path_str.c_str()) != 0) {  // unlink for files/symlinks, rmdir for empty dirs
     return absl::ErrnoToStatus(errno, absl::StrCat("remove('", path, "')"));
+  }
+  return absl::OkStatus();
+}
+
+absl::Status LocalFs::WriteContent(std::string_view path, std::string_view content) const {
+  // XFF_HOST_IO: LocalFs is the host-backed VFS write boundary.
+  std::ofstream output(std::string(path), std::ios::binary | std::ios::trunc);
+  if (!output) {
+    return absl::InternalError(absl::StrCat("cannot open ", path, " for writing"));
+  }
+  output.write(content.data(), static_cast<std::streamsize>(content.size()));
+  output.flush();
+  if (!output) {
+    return absl::InternalError(absl::StrCat("cannot write ", path));
   }
   return absl::OkStatus();
 }
