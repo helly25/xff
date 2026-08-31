@@ -3,19 +3,19 @@
   "measurements": {
     "overall": {
       "lines": {
-        "covered": 12437,
-        "total": 12976,
-        "percent": 95.85
+        "covered": 12448,
+        "total": 12988,
+        "percent": 95.84
       },
       "functions": {
-        "covered": 1483,
-        "total": 1503,
+        "covered": 1485,
+        "total": 1505,
         "percent": 98.67
       },
       "branches": {
-        "covered": 8797,
-        "total": 10018,
-        "percent": 87.81
+        "covered": 8801,
+        "total": 10022,
+        "percent": 87.82
       }
     },
     "program / command line": {
@@ -88,19 +88,19 @@
     },
     "program / filesystem": {
       "lines": {
-        "covered": 502,
-        "total": 512,
-        "percent": 98.05
+        "covered": 511,
+        "total": 522,
+        "percent": 97.89
       },
       "functions": {
-        "covered": 55,
-        "total": 56,
-        "percent": 98.21
+        "covered": 56,
+        "total": 57,
+        "percent": 98.25
       },
       "branches": {
-        "covered": 320,
-        "total": 342,
-        "percent": 93.57
+        "covered": 324,
+        "total": 346,
+        "percent": 93.64
       }
     },
     "program / matching": {
@@ -139,14 +139,14 @@
     },
     "extensions / API": {
       "lines": {
-        "covered": 308,
-        "total": 312,
-        "percent": 98.72
+        "covered": 310,
+        "total": 314,
+        "percent": 98.73
       },
       "functions": {
-        "covered": 73,
-        "total": 76,
-        "percent": 96.05
+        "covered": 74,
+        "total": 77,
+        "percent": 96.1
       },
       "branches": {
         "covered": 199,
