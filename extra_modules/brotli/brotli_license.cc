@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger, the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #include <string_view>
@@ -15,7 +15,7 @@ const license::Registrar kBrotliExtra{{
     .section_lead = true,
     .component = "xff Brotli extra (@xff_brotli)",
     .spdx = "Apache-2.0",
-    .text = "Copyright M. Boerger and the MBO Works authors. Licensed under the Apache License, Version 2.0.\n"
+    .text = "Copyright M. Boerger, the MBO Works authors. Licensed under the Apache License, Version 2.0.\n"
             "Adds raw Brotli streams and Brotli-compressed tar archives to the archive extra.",
 }};
 

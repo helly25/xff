@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger, the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 """Require the repository's canonical copyright identity everywhere it is stated."""
 
@@ -10,8 +10,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-COPYRIGHT = "Copyright (c) M. Boerger and the MBO Works authors"
-LICENSE_COPYRIGHT = "Copyright M. Boerger and the MBO Works authors"
+COPYRIGHT = "Copyright (c) M. Boerger, the MBO Works authors"
+LICENSE_COPYRIGHT = "Copyright M. Boerger, the MBO Works authors"
 _SPDX = re.compile(r"SPDX-" r"FileCopyrightText:\s*(.*?)(?:\s*-->)?\s*$")
 
 

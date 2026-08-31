@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger, the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 
 # Convert github-linguist's pinned languages.yml to xff's compact, deterministic

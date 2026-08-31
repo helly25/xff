@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger, the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -303,7 +303,7 @@ test::help_notice_and_license_reproduce_the_texts() {
   license="$("$(_xff_bin)" --help=license 2>&1)"
   # A complete licensing statement leads with the copyright + grant (Apache's APPENDIX), THEN the
   # verbatim license body - not the bare boilerplate with no owner.
-  expect_output_contains 'Copyright M. Boerger and the MBO Works authors' "${license}"
+  expect_output_contains 'Copyright M. Boerger, the MBO Works authors' "${license}"
   expect_matches '^xff - eXtended File Find' "${license}" # copyright block heads the output
   expect_output_contains 'Apache License' "${license}"    # the reproduced LICENSE text, in full
   expect_output_contains 'Version 2.0' "${license}"       # ditto (not just a pointer to a file)
