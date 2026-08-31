@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -112,7 +112,7 @@ for CXX_V1 in \
 done
 
 # Checks with no meaning in test code, disabled for `*_test.cc` only (mirrors
-# helly25/mbo). Stating the rule once here - rather than a NOLINT repeated on every
+# mboworks/mbo). Stating the rule once here - rather than a NOLINT repeated on every
 # test - keeps it in one place and covers new tests without anyone remembering to
 # annotate. `--checks` with only `-name` entries APPENDS to .clang-tidy's `Checks`
 # (removing those), so every other check still applies to tests.

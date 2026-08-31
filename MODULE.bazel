@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Module helly25_xff -- eXtended File Find."""
+"""Module mboworks_xff -- eXtended File Find."""
 
 module(
-    name = "helly25_xff",
+    name = "mboworks_xff",
     version = "0.0.0",
 )
 
@@ -29,7 +29,7 @@ extras_extension = use_extension("//tools:extras_repo.bzl", "extras_extension")
 use_repo(extras_extension, "xff_extras")
 
 # Local-development modules: hermetic LLVM toolchain + clangd compile-commands.
-# (Mirrors helly25/mbo; dev-only, not propagated to dependents.)
+# (Mirrors mboworks/mbo; dev-only, not propagated to dependents.)
 include("//bazelmod:dev.MODULE.bazel")
 include("//bazelmod:llvm.MODULE.bazel")
 
@@ -51,16 +51,6 @@ local_path_override(
     path = "xff_extras_api",
 )
 
-bazel_dep(name = "helly25_mbo", version = "0.13.0")
-git_override(
-    module_name = "helly25_mbo",
-    commit = "de0e95622d1f33907e106906dfe7d204691633b6",
-    remote = "https://github.com/helly25/mbo",
-)
+bazel_dep(name = "mboworks_mbo", version = "0.14.0")
 bazel_dep(name = "nlohmann_json", version = "3.12.0.bcr.2")
-bazel_dep(name = "helly25_bashtest", version = "0.6.0")
-git_override(
-    module_name = "helly25_bashtest",
-    commit = "2b282a66bd7f9b7ddeea00d2e8baebde3e1ef620",
-    remote = "https://github.com/helly25/bashtest",
-)
+bazel_dep(name = "mboworks_bashtest", version = "0.6.1")

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Extra development modules (mirrors helly25/mbo @ 1d17cc9)."""
+"""Extra development modules (mirrors mboworks/mbo @ 1d17cc9)."""
 
 # Kept under its CANONICAL module name, no repo_name alias: the extractor's own
 # `refresh_compile_commands` macro hard-codes `@hedron_compile_commands//:print_args` as a plain
 # string, which bazel resolves in the CALLING repo's mapping - so under an alias, a
 # `refresh_compile_commands` target in this repo fails to load ("no repository visible as
 # '@hedron_compile_commands'"). //:refresh_compile_commands needs that macro, hence the canonical
-# name here. (Diverges from helly25/mbo's copy for exactly this reason.)
+# name here. (Diverges from mboworks/mbo's copy for exactly this reason.)
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
 git_override(
     module_name = "hedron_compile_commands",

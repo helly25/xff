@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 # shellcheck disable=SC1090,SC1091,SC2154
-source "${helly25_bashtest}"
+source "${mboworks_bashtest}"
 
 # `test_tmpdir` allocates each tree under bashtest's managed scratch root. Its random suffix keeps
 # test names out of printed paths, where a name could accidentally satisfy a negative assertion.
@@ -303,7 +303,7 @@ test::help_notice_and_license_reproduce_the_texts() {
   license="$("$(_xff_bin)" --help=license 2>&1)"
   # A complete licensing statement leads with the copyright + grant (Apache's APPENDIX), THEN the
   # verbatim license body - not the bare boilerplate with no owner.
-  expect_output_contains 'Copyright 2026 M. Boerger, The helly25 authors' "${license}"
+  expect_output_contains 'Copyright M. Boerger and the MBO Works authors' "${license}"
   expect_matches '^xff - eXtended File Find' "${license}" # copyright block heads the output
   expect_output_contains 'Apache License' "${license}"    # the reproduced LICENSE text, in full
   expect_output_contains 'Version 2.0' "${license}"       # ditto (not just a pointer to a file)
@@ -323,9 +323,9 @@ test::help_license_component_shows_that_components_license() {
   # `--help=license=COMPONENT` answers "what does the license of this bundled thing SAY" - which
   # neither --help=notice (names only) nor --help=license (xff's own) could answer.
   local out
-  out="$("$(_xff_bin)" '--help=license=helly25/mbo' 2>&1)"
+  out="$("$(_xff_bin)" '--help=license=mboworks/mbo' 2>&1)"
   expect_matches '^xff - eXtended File Find' "${out}" # #142: the grant still leads
-  expect_output_contains 'helly25/mbo' "${out}"
+  expect_output_contains 'mboworks/mbo' "${out}"
   expect_output_contains 'Apache License' "${out}" # the body of the license it names
   # Core's non-Apache license is embedded too.
   out="$("$(_xff_bin)" --help=license=RE2 2>&1)"

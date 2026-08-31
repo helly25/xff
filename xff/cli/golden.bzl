@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,7 +46,7 @@ Example:
     )
 """
 
-load("@helly25_mbo//mbo/diff:diff.bzl", "diff_test")
+load("@mboworks_mbo//mbo/diff:diff.bzl", "diff_test")
 
 # Populate the fixture in a temp dir, then run `xff <flags>` over it in mode-stable order, pipe the
 # stdout through the optional normalizer, and capture it. Placeholders are substituted with str

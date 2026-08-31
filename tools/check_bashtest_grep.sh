@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Guard (pre-commit): a bashtest must assert on captured output with helly25/bashtest's
+# Guard (pre-commit): a bashtest must assert on captured output with mboworks/bashtest's
 # content matchers (expect_output_contains / expect_output_not_contains for a literal
 # substring; expect_matches / expect_not_matches for an ERE), never a hand-rolled shell
 # `grep`. A piped `printf ... | grep -q` misfires on SIGPIPE under `set -o pipefail`, and

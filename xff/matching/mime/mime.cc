@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xff/matching/mime/mime.h"
@@ -361,7 +361,7 @@ std::string_view TypeInfo::Category() const {
 absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy conflicts) {
   if (files.empty()) {
     State& state = GlobalState();
-    const absl::MutexLock lock(&state.mutex);
+    const absl::MutexLock lock(state.mutex);
     // Registered databases are trusted, generated build inputs. Defer their
     // comparatively expensive JSON parse until a MIME predicate or field is
     // actually evaluated; user-provided layers below remain eagerly validated.
@@ -378,7 +378,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
   }
   Finalize(vocabulary);
   State& state = GlobalState();
-  const absl::MutexLock lock(&state.mutex);
+  const absl::MutexLock lock(state.mutex);
   auto snapshot = std::make_unique<const Vocabulary>(std::move(vocabulary));
   state.snapshots.push_back(std::move(snapshot));
   state.active.set_ref(*state.snapshots.back());
@@ -387,7 +387,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
 
 TypeInfo InfoForName(std::string_view name) {
   State& state = GlobalState();
-  const absl::MutexLock lock(&state.mutex);
+  const absl::MutexLock lock(state.mutex);
   EnsureConfigured(state);
   return Lookup(*state.active, name);
 }
@@ -398,7 +398,7 @@ std::string_view TypeForName(std::string_view name) {
 
 absl::Span<const TypeInfo> Types() {
   State& state = GlobalState();
-  const absl::MutexLock lock(&state.mutex);
+  const absl::MutexLock lock(state.mutex);
   EnsureConfigured(state);
   return state.active->views;
 }

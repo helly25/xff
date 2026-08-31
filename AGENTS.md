@@ -78,13 +78,13 @@ PR's user-visible outcome or motivation actually changes.
 6. **Test `absl::Status` / `absl::StatusOr<T>` with status matchers - never raw
    `.ok()`.** Raw `EXPECT_TRUE(s.ok())` / `EXPECT_FALSE(s.ok())` throws away the
    code and message on failure. Use `mbo::testing`
-   (`@helly25_mbo//mbo/testing:status_cc`):
+   (`@mboworks_mbo//mbo/testing:status_cc`):
    - `EXPECT_THAT(s, IsOk())`
    - `EXPECT_THAT(s, StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("…")))`
    - `EXPECT_THAT(so, IsOkAndHolds(Eq(42)))`
    - `ASSERT_OK_AND_ASSIGN(const auto value, MakeThing());` to unwrap a `StatusOr`.
 
-   mbo's set is the helly25-canonical superset: it works on both `Status` and
+   mbo's set is the MBO Works canonical superset: it works on both `Status` and
    `StatusOr`, and adds payload matchers (`StatusHasPayload`) plus the
    `EXPECT_OK` / `ASSERT_OK` / `ASSERT_OK_AND_ASSIGN` macros over abseil's
    `absl_testing`.

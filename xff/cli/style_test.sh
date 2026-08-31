@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,12 +17,12 @@
 # Binary-level test of the strict find style: `--config=find` accepts only find's
 # own vocabulary and rejects xff extensions (e.g. -println), while the default xff
 # style accepts everything. Exercises cli/main.cc's ActiveStyle + EnforceStyle
-# wiring end to end (helly25/bashtest).
+# wiring end to end (mboworks/bashtest).
 
 set -euo pipefail
 
 # shellcheck disable=SC1090,SC1091,SC2154
-source "${helly25_bashtest}"
+source "${mboworks_bashtest}"
 
 # Path to the built xff binary in the test runfiles.
 _xff_bin() {

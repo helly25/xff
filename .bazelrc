@@ -4,7 +4,7 @@
 # Allow platform specific control and add the missing 'CoreFoundation' lib.
 common --enable_platform_specific_config
 
-# Define the Apple OS (flags mirror helly25/mbo).
+# Define the Apple OS (flags mirror mboworks/mbo).
 common --apple_platform_type=macos
 common:macos --features=-macos_default_link_flags
 common:macos --features=-supports_dynamic_linker

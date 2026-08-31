@@ -128,7 +128,7 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
     the alphabetized topic rendering remain owning because mutation, sorting, or result lifetime is
     part of their contract.
 - **Compile-DB launcher configuration after
-  [mbo PR #354](https://github.com/helly25/mbo/pull/354): SHIPPED (PR #627).** The outer
+  [mbo PR #354](https://github.com/mboworks/mbo/pull/354): SHIPPED (PR #627).** The outer
   `bazel run //:refresh_compile_commands` now uses `--config=clang-tidy`, matching the preceding
   builds instead of rebuilding the extractor with the default toolchain. The runtime copy remains
   because outer flags do not propagate into the internal `aquery`. A cold-worktree verification
@@ -151,7 +151,7 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
   build and compare clean/incremental time plus diagnostics against the globally enforced
   `parse_headers` and `layering_check` baseline.
 - **Make every module's LCOV branch status green - DONE.** Use the full report overview (for example
-  [`coverage/pr/621/lcov/`](https://helly25.github.io/xff/coverage/pr/621/lcov/)) to identify every
+  [`coverage/pr/621/lcov/`](https://mboworks.github.io/xff/coverage/pr/621/lcov/)) to identify every
   yellow branch row, then add focused boundary/error-path tests until each module reaches its green
   branch threshold. Keep all line and function rows green. Prefer real tests; use a narrower
   per-module threshold only for demonstrated unreachable or generated branches, with the reason
@@ -245,8 +245,8 @@ std::string_view>` over named constexpr arrays instead of comma-joined strings r
 - **`mbo::testing::EqualsText` adoption is complete.** The convention is now
   in `STYLE_CPP.md` / `AGENTS.md`: prefer `EXPECT_THAT(actual, EqualsText(golden))` (unified diff,
   line by line) over `EXPECT_EQ` for multi-line strings, with `WithDropIndent` /
-  `mbo::strings::DropIndent` / `DropIndentAndSplit` (`@helly25_mbo//mbo/testing:matchers_cc`,
-  `@helly25_mbo//mbo/strings:indent_cc`) when an indented literal reads better. The existing test
+  `mbo::strings::DropIndent` / `DropIndentAndSplit` (`@mboworks_mbo//mbo/testing:matchers_cc`,
+  `@mboworks_mbo//mbo/strings:indent_cc`) when an indented literal reads better. The existing test
   tree has no remaining `EXPECT_EQ` multi-line goldens.
 
 - **Reconcile glob->RE2 translation with `mbo::file::Glob2Re2` (#122). RESOLVED by adoption.** mbo
@@ -621,13 +621,13 @@ remains below is the design-forked / larger work.
     - **Git-style header SHIPPED:** `-diff` sets `time_format=""` so the header omits the per-file
       mtime (`--- a/one.txt`), making the output reproducible; the golden tests no longer strip a
       timestamp with `sed`. (mbo `ignore_missing_final_newline` + empty-`time_format` landed in
-      helly25/mbo#234.)
+      mboworks/mbo#234.)
     - **Config contract SHIPPED:** both `--diff-ignore` globals may be saved in user config or an
       explicit `--xffrc=FILE`. They use the same validation as command-line values, and the normal
       config precedence applies: resolved config flags are prepended, so a later CLI value wins;
       an empty CLI value explicitly disables a configured normalization or matching expression.
     - **`mbo` dependency:** built against a `git_override` pinned at the mbo `main` commit merging
-      helly25/mbo#234 (0.13.0-dev: `mbo/diff` + `mbo/digest`); drop it for a plain `helly25_mbo`
+      mboworks/mbo#234 (0.13.0-dev: `mbo/diff` + `mbo/digest`); drop it for a plain `mboworks_mbo`
       0.13.0 bump once that releases to BCR.
 
 - **`--explain` flavor table: two-tier layout - SHIPPED (2026-07-06).** `RenderFlavorTable` now
@@ -1513,7 +1513,7 @@ FILE`, which reads per-match, versus a reduction like `--summary`, which is what
     that changes it belongs in the `cc_toolchain` (a feature that swaps both the include and the link
     flags, and turns the old ones off), never in per-target flags or deps.
 
-- **RESOLVED (2026-08-10): the `clang-tidy` CI cell was ~5x slower than helly25/mbo's.** Cause found
+- **RESOLVED (2026-08-10): the `clang-tidy` CI cell was ~5x slower than mboworks/mbo's.** Cause found
   and fixed: `actions/cache@v4` only SAVES on a key MISS, and the key changed only with
   `MODULE.bazel.lock` / `.bazelversion` - so after the very first run every run was a cache hit that
   never updated, freezing the disk cache and recompiling all of xff each time. Fixed by splitting

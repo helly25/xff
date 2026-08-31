@@ -1,7 +1,7 @@
 # xff - Design Document
 
 > **xff** - _eXtended File Find_: a massively improved Linux `find`.
-> Status: **Draft** · Started 2026-06-07 · Org: helly25
+> Status: **Draft** · Started 2026-06-07 · Org: MBO Works
 
 ## Purpose
 

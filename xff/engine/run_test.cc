@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -255,7 +255,7 @@ TEST_F(RunTest, ExecPlusBatchesAllMatchesIntoOneRun) {
   // at end-of-walk (the exec_batches map + post-walk flush), in-process. The shell
   // appends a RUN marker per invocation plus each path, so exactly one RUN line
   // proves a single batched run (per-entry would yield two). The full binary/CLI
-  // path is covered at the system level in //xff/cli:exec_test (helly25/bashtest).
+  // path is covered at the system level in //xff/cli:exec_test (mboworks/bashtest).
   const std::string out = (fs::path(::testing::TempDir()) / "xff_execplus_out.lst").string();
   std::error_code ec;
   fs::remove(out, ec);

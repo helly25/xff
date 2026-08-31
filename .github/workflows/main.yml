@@ -121,7 +121,7 @@ jobs:
   # trunk (https://trunk.io) runs the heavier linters: buildifier, markdownlint,
   # prettier, yamllint, and the security scanners. (clang-tidy is a local-only
   # pre-commit hook now, not a trunk linter; CI relies on the bazel -Werror gate.)
-  # Mirrors helly25/mbo.
+  # Mirrors mboworks/mbo.
   trunk:
     runs-on: ubuntu-latest
     steps:
@@ -131,7 +131,7 @@ jobs:
 
   # pre-commit hooks (clang-format, shfmt, shellcheck, actionlint, and the
   # repo-policy text checks incl. no-em-dashes). The local-only clang-tidy hook
-  # self-skips here (no compile DB on the runner). Mirrors helly25/mbo.
+  # self-skips here (no compile DB on the runner). Mirrors mboworks/mbo.
   pre-commit:
     runs-on: ubuntu-latest
     steps:
@@ -279,7 +279,7 @@ jobs:
           {
             echo "### Production coverage"
             echo
-            echo "[Browse the HTML coverage report](https://helly25.github.io/xff/coverage/${COVERAGE_PAGE}/)."
+            echo "[Browse the HTML coverage report](https://mboworks.github.io/xff/coverage/${COVERAGE_PAGE}/)."
             echo
             echo "[Download this run's coverage artifact](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}#artifacts)."
             echo
@@ -431,7 +431,7 @@ jobs:
           bazel test //xff/cli:xff_markdown_test //xff/cli:xff_notice_test --config=xff_docs
           --repository_cache=$HOME/.cache/bazel-repo
 
-  # clang-tidy (hermetic clang-22) over the compile DB. Mirrors helly25/mbo's job and OWNS clang-tidy
+  # clang-tidy (hermetic clang-22) over the compile DB. Mirrors mboworks/mbo's job and OWNS clang-tidy
   # in CI: it needs a compile_commands.json this job builds (the pre-commit / trunk jobs skip the
   # local-only hook, which has no compile DB there). Scoped to sources changed against main on a
   # branch; the whole tree on main. The compile DB is extracted in --config=clang-tidy (the develop
@@ -492,7 +492,7 @@ jobs:
         # SPLIT restore/save on purpose. With a single actions/cache@v4 and a key that only changes
         # when MODULE.bazel.lock / .bazelversion do, the first run saves and every later run is a
         # cache HIT - and a hit never saves, so the cache freezes at that first content and every run
-        # recompiles all of xff from scratch. That is why this cell took ~34 min while helly25/mbo's
+        # recompiles all of xff from scratch. That is why this cell took ~34 min while mboworks/mbo's
         # equivalent ran ~6 min warm. The post-job cleanup retains only the newest entry: if this
         # run saves successfully it supersedes the restored predecessor; if saving fails, that
         # predecessor remains newest and is retained.
@@ -535,7 +535,7 @@ jobs:
         # measured 2026-08-15 they held 9.8 of the 10 GB repo budget, one LRU eviction away from
         # eating the matrix cells' caches. Keep only the newest entry. A second generation is not a
         # useful fallback: prefix restore chooses the newest match and does not retry an older cache
-        # after a restore failure. Adopted from helly25/mbo's cleanup step (theirs is ref-scoped;
+        # after a restore failure. Adopted from mboworks/mbo's cleanup step (theirs is ref-scoped;
         # this key is main-only so the bare prefix is the scope).
         if: always() && github.ref == 'refs/heads/main'
         run: |
@@ -578,7 +578,7 @@ jobs:
   # Single required status check: one job that gates merge on the whole matrix,
   # so branch protection needs only `done`. A yq/jq step self-checks that every
   # workflow job is wired into `needs`, so a newly added job cannot silently
-  # escape the gate. Mirrors helly25/mbo.
+  # escape the gate. Mirrors mboworks/mbo.
   done:
     # Every declared job must appear here (the step below enforces exactly that).
     needs:

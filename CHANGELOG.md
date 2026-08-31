@@ -1,7 +1,18 @@
-<!-- SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors -->
+<!-- SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
 # 0.3.0
+
+## Project
+
+- Transfer the repository to `mboworks/xff`, rename the root Bazel module to
+  `mboworks_xff`, move coverage publishing to MBO Works Pages, and adopt the
+  canonical MBO Works copyright identity. Historical tags and GitHub releases
+  remain unchanged.
+- Migrate MBO Works dependencies and repository references, including
+  `mboworks_mbo` and `mboworks_bashtest`.
+- Keep post-release CHANGELOG updates as ordinary human-reviewed pull requests;
+  the release helper no longer arms them for automatic merging.
 
 ## Matching
 

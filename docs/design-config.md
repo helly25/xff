@@ -3,7 +3,7 @@
 > Detailed spec for the layered config system. **Refines** `design.md`
 > §"Security & safety (review #2)" and §"Flag / toggle conventions"; where the
 > two differ, this document is authoritative for config specifically.
-> Status: **Draft** · 2026-06-21 · Org: helly25
+> Status: **Draft** · 2026-06-21 · Org: MBO Works
 
 > **SUPERSEDED IN PART - the project layer was dropped (Option B, 2026-07-06).**
 > xff has **no auto-discovered project config**: no per-directory `.xffrc`, no ancestor

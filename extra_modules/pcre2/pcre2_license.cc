@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #include <string_view>
@@ -14,7 +14,7 @@ const xff::license::Registrar kPcre2Extra{{
     .section_lead = true,
     .component = "xff PCRE2 extra (@xff_pcre2)",
     .spdx = "Apache-2.0",
-    .text = "Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.\n"
+    .text = "Copyright M. Boerger and the MBO Works authors. Licensed under the Apache License, Version 2.0.\n"
             "Provides the -regextype=pcre2 backend by linking PCRE2 and SLJIT, whose notices follow.",
 }};
 const xff::license::Registrar kPcre2{{

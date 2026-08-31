@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 
 module(
@@ -13,6 +13,6 @@ bazel_dep(name = "brotli", version = "1.2.0.bcr.1")
 bazel_dep(name = "xff_archive", version = "0.0.0")
 bazel_dep(name = "xff_extras_api", version = "0.0.0")
 
-# helly25_mbo and googletest resolve through the root module's graph and overrides.
+# mboworks_mbo and googletest resolve through the root module's graph and overrides.
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
-bazel_dep(name = "helly25_mbo", version = "0.13.0")
+bazel_dep(name = "mboworks_mbo", version = "0.14.0")

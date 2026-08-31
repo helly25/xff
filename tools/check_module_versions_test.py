@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,7 +45,7 @@ class CollectTest(unittest.TestCase):
         # Root module depends on both extras (intra-repo) plus a third-party dep.
         (root / "MODULE.bazel").write_text(
             _module(
-                "helly25_xff",
+                "mboworks_xff",
                 main,
                 {"abseil-cpp": "20250814.2", "xff_extras_api": api, "xff_pcre2": pcre},
             )
@@ -74,7 +74,7 @@ class CollectTest(unittest.TestCase):
                     "bazel_dep xff_extras_api",
                     "bazel_dep xff_extras_api",
                     "bazel_dep xff_pcre2",
-                    "module helly25_xff",
+                    "module mboworks_xff",
                     "module xff_extras_api",
                     "module xff_pcre2",
                     "xff --version",
@@ -100,14 +100,14 @@ class CollectTest(unittest.TestCase):
     def test_reports_missing_version_source(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "MODULE.bazel").write_text(_module("helly25_xff", "0.0.0"))
+            (root / "MODULE.bazel").write_text(_module("mboworks_xff", "0.0.0"))
             _, errors = cmv.collect(root)
             self.assertTrue(any("main.cc" in e for e in errors))
 
     def test_reports_missing_version_literal(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / "MODULE.bazel").write_text(_module("helly25_xff", "0.0.0"))
+            (root / "MODULE.bazel").write_text(_module("mboworks_xff", "0.0.0"))
             (root / "xff" / "cli").mkdir(parents=True)
             (root / "xff" / "cli" / "main.cc").write_text("int main() { return 0; }\n")
             _, errors = cmv.collect(root)
@@ -115,7 +115,7 @@ class CollectTest(unittest.TestCase):
 
 
 def _finding(version: str) -> cmv.Finding:
-    return cmv.Finding("MODULE.bazel", "module helly25_xff", version)
+    return cmv.Finding("MODULE.bazel", "module mboworks_xff", version)
 
 
 class DecideTest(unittest.TestCase):

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +33,7 @@ golden via mbo's `diff_test`. Use it to lock the exact output of many (often xff
 commands; use `xff_golden` here to assert find and xff agree (or diverge) on one command.
 """
 
-load("@helly25_bashtest//bashtest:bashtest.bzl", "bashtest")
+load("@mboworks_bashtest//bashtest:bashtest.bzl", "bashtest")
 
 def xff_golden(name, setup, args, find_golden, xff_golden, ordered = False, size = "small"):
     """A dual-mode (find + xff) golden test.

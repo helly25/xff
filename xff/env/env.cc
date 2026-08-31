@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,7 +49,7 @@ Cache& Instance() {
 
 std::optional<std::string> Get(std::string_view name) {
   Cache& cache = Instance();
-  const absl::MutexLock lock(&cache.mu);
+  const absl::MutexLock lock(cache.mu);
   if (const auto it = cache.entries.find(name); it != cache.entries.end()) {
     return it->second;
   }
@@ -74,13 +74,13 @@ void Prewarm(absl::Span<const std::string_view> names) {
 
 void SetForTesting(std::string_view name, std::optional<std::string> value) {
   Cache& cache = Instance();
-  const absl::MutexLock lock(&cache.mu);
+  const absl::MutexLock lock(cache.mu);
   cache.entries.insert_or_assign(std::string(name), std::move(value));
 }
 
 void ClearForTesting() {
   Cache& cache = Instance();
-  const absl::MutexLock lock(&cache.mu);
+  const absl::MutexLock lock(cache.mu);
   cache.entries.clear();
 }
 

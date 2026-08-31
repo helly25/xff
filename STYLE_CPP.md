@@ -1,6 +1,6 @@
 # C++ Style
 
-The C++ coding style for helly25 repositories. It sits on top of two
+The C++ coding style for MBO Works repositories. It sits on top of two
 machine-enforced config files and adds the human conventions below. When in doubt
 the config files win; this document explains and extends them so a contributor (or
 an AI assistant) can follow them without reverse-engineering the tooling.
@@ -311,7 +311,7 @@ clang-format picks a layout per line; these habits steer it toward the readable 
 ## Error handling: `absl::Status` and the MBO status macros
 
 Propagate errors with the macros from `mbo/status/status_macros.h`
-(`@helly25_mbo//mbo/status:status_macros_cc`), not a hand-written
+(`@mboworks_mbo//mbo/status:status_macros_cc`), not a hand-written
 `if (!x.ok()) return x.status();`.
 
 - **A "value or error" type IS `absl::StatusOr<T>`.** Do not hand-roll a struct that bundles
@@ -463,7 +463,7 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
   `false` or `Eq(true)`: `EXPECT_THAT(found, IsTrue())`.
 - **Multi-line text: use `mbo::testing::EqualsText`.** For a multi-line string
   (a rendered table, generated `--help`, file contents) prefer
-  `EXPECT_THAT(actual, EqualsText(golden))` (`@helly25_mbo//mbo/testing:matchers_cc`): it compares
+  `EXPECT_THAT(actual, EqualsText(golden))` (`@mboworks_mbo//mbo/testing:matchers_cc`): it compares
   line by line with unified-diff output, so a mismatch points at the offending line instead of
   dumping the whole blob. Use `EqualsText` for all text comparisons, including text that is not
   naturally line-oriented.
@@ -487,7 +487,7 @@ substitute for a committed test. Tests use GoogleTest + GoogleMock with these co
     empty first line after `R"out(`, strips the first content line's indent from every line, and clears
     a whitespace-only last line - so the block reads as the literal expected output. The subject stays
     as-is; only de-indent it too (`EXPECT_THAT(DropIndent(actual), WithDropIndent(EqualsText(golden)))`,
-    `@helly25_mbo//mbo/strings:indent_cc`) when the actual is itself an indented literal. Use any raw
+    `@mboworks_mbo//mbo/strings:indent_cc`) when the actual is itself an indented literal. Use any raw
     delimiter (`R"out(`, `R"md(`); a raw string also needs no `\n` / `\\` escaping.
 
   - **Caveat - trailing whitespace.** A raw-string golden cannot carry significant _trailing_ spaces on
@@ -564,10 +564,10 @@ serialized-string comparison. See the Protocol Buffers section.
 
 ### Shell / binary-level tests
 
-- Use **helly25/bashtest** (`bazel_dep(name = "helly25_bashtest", repo_name = "com_helly25_bashtest")`,
-  whose macro emits `@com_helly25_bashtest` labels), not a hand-rolled `sh_test`:
-  `load("@com_helly25_bashtest//bashtest:bashtest.bzl", "bashtest")`, then a
-  script that `source`s `"${helly25_bashtest}"`, defines `test::name()` functions using
+- Use **mboworks/bashtest** (`bazel_dep(name = "mboworks_bashtest", repo_name = "com_mboworks_bashtest")`,
+  whose macro emits `@com_mboworks_bashtest` labels), not a hand-rolled `sh_test`:
+  `load("@com_mboworks_bashtest//bashtest:bashtest.bzl", "bashtest")`, then a
+  script that `source`s `"${mboworks_bashtest}"`, defines `test::name()` functions using
   the `expect_*` assertions, and ends with `test_runner`.
 - **Assert on captured output with bashtest's content matchers (>= 0.5.0), never a
   hand-rolled `grep`.** `expect_output_contains` / `expect_output_not_contains` for a
@@ -587,7 +587,7 @@ serialized-string comparison. See the Protocol Buffers section.
 - **For a whole-output-per-case golden, prefer a golden-file test over scraping.** When a
   test wants to lock an entire rendered output (not just probe for substrings), commit one
   expected-output file per case and diff against it with mbo's `diff.bzl` `diff_test`
-  (`@helly25_mbo//mbo/diff:diff.bzl`), which fails printing the offending diff. `xff`'s
+  (`@mboworks_mbo//mbo/diff:diff.bzl`), which fails printing the offending diff. `xff`'s
   `diff_golden.bzl` macro is the pattern: a single input generator plus a `{case: golden}`
   dict, each case run through the built binary into a normalized `.actual` that `diff_test`
   compares. This is the output analogue of `EqualsText` for C++ and reads far better than a

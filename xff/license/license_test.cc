@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -66,7 +66,7 @@ TEST_F(LicenseTest, NoticesIncludeTheAlwaysLinkedCoreDeps) {
   const std::vector<Notice> notices = Notices();
   EXPECT_THAT(notices, Contains(ComponentIs("Abseil (C++)")));
   EXPECT_THAT(notices, Contains(ComponentIs("RE2")));
-  EXPECT_THAT(notices, Contains(ComponentIs("helly25/mbo")));
+  EXPECT_THAT(notices, Contains(ComponentIs("mboworks/mbo")));
   for (const Notice& notice : notices) {
     EXPECT_THAT(notice.spdx, Not(IsEmpty())) << notice.component;
     EXPECT_THAT(notice.text, Not(IsEmpty())) << notice.component;
@@ -86,7 +86,7 @@ TEST_F(LicenseTest, CopyrightNoticeStatesTheOwnerAndGrant) {
   EXPECT_THAT(
       std::string(text),
       AllOf(
-          HasSubstr("xff - eXtended File Find"), HasSubstr("Copyright 2026 M. Boerger, The helly25 authors"),
+          HasSubstr("xff - eXtended File Find"), HasSubstr("Copyright M. Boerger and the MBO Works authors"),
           HasSubstr("Licensed under the Apache License, Version 2.0.")));
 }
 
@@ -111,7 +111,7 @@ TEST_F(LicenseTest, CommittedLicenseFileEqualsLicenseText) {
 
 TEST_F(LicenseTest, TheApacheBodyIsRetrievableByItsSpdxId) {
   // Keyed by SPDX rather than by component, so the one embedded text answers for every Apache-2.0
-  // component (xff itself, Abseil, helly25/mbo) instead of being duplicated per name.
+  // component (xff itself, Abseil, mboworks/mbo) instead of being duplicated per name.
   EXPECT_THAT(std::string(LicenseBodyFor("Apache-2.0")), EqualsText(std::string(LicenseText())));
 }
 

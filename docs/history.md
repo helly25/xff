@@ -321,7 +321,7 @@ The former combined roadmap and completion ledger through PR #683 is retained se
       `MEMORY_SANITIZER`, in the shell test via an `XFF_MSAN` env from a `select()` on the same
       flag. And the 1000-member `archive_fs_test` moved to `size = "medium"`: 1589 ms natively
       times MSan's origin-tracking factor lands right on the small (60s) cliff.
-- **4b follow-up (SHIPPED 2026-08-16)**: helly25/bashtest 0.6.0's `skip_test` makes the two
+- **4b follow-up (SHIPPED 2026-08-16)**: mboworks/bashtest 0.6.0's `skip_test` makes the two
   MSan-guarded CLI mount cases real skips instead of successful tests that merely print a skip
   line; `--no-skip` is available where an environment guarantee must turn any skip into a failure.
 
@@ -438,7 +438,7 @@ packages). aarch64 will NOT do - see "why" below. Then:
 
 ```sh
 sudo apt-get install -y fuse3 libfuse3-3    # the runtime the loader dlopens + the unmount helper
-git clone https://github.com/helly25/xff && cd xff
+git clone https://github.com/mboworks/xff && cd xff
 # The MSan cell (this is the command that was run):
 bazel test //... $(tools/extras.py --wildcards) --config=xff_docs \
   --config=clang --config=msan --config=xff_fuse_tests_required
@@ -645,9 +645,9 @@ one level up; an early stop stays an explicit opt-in.
    pins the 10-files-or-5-directories capped-to-12 case, complete reductions, explicit actions, last
    wins, zero, and every invalid form.
 
-## Silence external warnings in the EXEC configuration too (from helly25/mbo#332) - SHIPPED
+## Silence external warnings in the EXEC configuration too (from mboworks/mbo#332) - SHIPPED
 
-Adapted from mbo's [#332](https://github.com/helly25/mbo/pull/332), which found that the warning
+Adapted from mbo's [#332](https://github.com/mboworks/mbo/pull/332), which found that the warning
 policy applied only to the TARGET configuration, so anything built for the host escaped it in both
 directions: first-party warnings were not errors, and external sources were not muted.
 
@@ -676,7 +676,7 @@ Verified by planting a deliberate unused variable and building, rather than by r
 | third-party external sources              | 0 warnings (was: on every build) |
 
 **Resolved (2026-08-22): eliminate the compile-DB extractor's C/C++ driver mismatch.** The
-[PR #611 clang-tidy job](https://github.com/helly25/xff/actions/runs/32568629375/job/97020893058?pr=611)
+[PR #611 clang-tidy job](https://github.com/mboworks/xff/actions/runs/32568629375/job/97020893058?pr=611)
 again prints ~80 `error: invalid argument '-std=c99' not allowed with 'C++'` diagnostics. The
 extractor probed third-party C targets (xz sets `-std=c99`) with `clang++`; warning flags could not
 affect that language-mode error, and dropping those third-party entries only cleaned the resulting
@@ -750,7 +750,7 @@ rewrite remain later work because a correct SquashFS writer is separate, multi-p
 
 ## Bashtest scratch files: use `test_tmpdir`, not hand-rolled paths
 
-helly25/bashtest already provides `${BASHTEST_TMPDIR}`, a scratch directory its own exit trap
+mboworks/bashtest already provides `${BASHTEST_TMPDIR}`, a scratch directory its own exit trap
 removes, and 19 xff bashtests ignored it to hand-roll `mktemp -d` plus a per-case `rm -rf`. Beyond
 the duplication, the cleanup is WRONG in the case that matters: bashtest keeps running after a failed
 expectation, so a case that fails before its `rm` leaks its tree.

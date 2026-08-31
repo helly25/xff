@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ function die() {
 
 # Resolve clang-format, preferring the hermetic toolchains_llvm binary so CI and
 # local runs agree on the version, ahead of any system clang-format on PATH.
-# Mirrors helly25/mbo's tools/clang_format.sh.
+# Mirrors mboworks/mbo's tools/clang_format.sh.
 
 # The `bazel-<repo>` convenience link points at the execroot; fall back to cwd.
 BAZEL_OUTPUT="bazel-$(basename "${PWD}")"

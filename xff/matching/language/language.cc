@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xff/matching/language/language.h"
@@ -532,7 +532,7 @@ void EnsureConfigured(State& state) ABSL_EXCLUSIVE_LOCKS_REQUIRED(state.mutex) {
 absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy conflicts) {
   if (files.empty()) {
     State& state = GlobalState();
-    const absl::MutexLock lock(&state.mutex);
+    const absl::MutexLock lock(state.mutex);
     state.active.reset();
     return absl::OkStatus();
   }
@@ -546,7 +546,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
   }
   Finalize(vocabulary);
   State& state = GlobalState();
-  const absl::MutexLock lock(&state.mutex);
+  const absl::MutexLock lock(state.mutex);
   auto snapshot = std::make_unique<const LanguageVocabulary>(std::move(vocabulary));
   state.snapshots.push_back(std::move(snapshot));
   state.active.set_ref(*state.snapshots.back());
@@ -555,7 +555,7 @@ absl::Status Configure(absl::Span<const std::string> files, ConflictPolicy confl
 
 LanguageSnapshot ActiveSnapshot() {
   State& state = GlobalState();
-  const absl::MutexLock lock(&state.mutex);
+  const absl::MutexLock lock(state.mutex);
   EnsureConfigured(state);
   return LanguageSnapshot(*state.active);
 }

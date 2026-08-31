@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -148,7 +148,7 @@ TEST_F(ConfigTest, DefaultStyleForProgramSelectsByBasename) {
   EXPECT_THAT(DefaultStyleForProgram("/usr/local/bin/find"), "find");  // the basename, not the path
   EXPECT_THAT(DefaultStyleForProgram("./find"), "find");
   EXPECT_THAT(DefaultStyleForProgram("xff"), "xff");
-  EXPECT_THAT(DefaultStyleForProgram("/opt/helly25/xff"), "xff");
+  EXPECT_THAT(DefaultStyleForProgram("/opt/mboworks/xff"), "xff");
   EXPECT_THAT(DefaultStyleForProgram(""), "xff");  // no name -> the modern default
   EXPECT_THAT(DefaultStyleForProgram("rg"), "rg");
   // A non-preset invocation name is returned verbatim as a named-config selector (a `mytool`
@@ -165,8 +165,8 @@ TEST_F(ConfigTest, DefaultStyleForProgramStripsFullSuffix) {
   // The extras-included full build is `<prefix>_full`; it behaves exactly as its lean twin, so the
   // `_full` suffix is stripped before the name is used as a selector.
   EXPECT_THAT(DefaultStyleForProgram("xff_full"), "xff");
-  EXPECT_THAT(DefaultStyleForProgram("/opt/helly25/xff_full"), "xff");  // basename, then strip
-  EXPECT_THAT(DefaultStyleForProgram("find_full"), "find");             // still find, not the xff default
+  EXPECT_THAT(DefaultStyleForProgram("/opt/mboworks/xff_full"), "xff");  // basename, then strip
+  EXPECT_THAT(DefaultStyleForProgram("find_full"), "find");              // still find, not the xff default
   EXPECT_THAT(DefaultStyleForProgram("rg_full"), "rg");
   EXPECT_THAT(DefaultStyleForProgram("mytool_full"), "mytool");  // a custom full binary keeps its base
   EXPECT_THAT(DefaultStyleForProgram("_full"), "xff");           // a bare `_full` -> the modern default

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +32,7 @@ fail() {
 }
 
 # File content as a single string (built-ins only; this is a standalone test, not
-# a helly25/bashtest, so it has no expect_* matchers - and reading files avoids
+# a mboworks/bashtest, so it has no expect_* matchers - and reading files avoids
 # the piped-grep SIGPIPE trap the bashtest lint guards against).
 slurp() { printf '%s' "$(<"$1")"; }
 
