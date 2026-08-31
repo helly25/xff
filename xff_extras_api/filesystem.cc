@@ -26,4 +26,8 @@ absl::StatusOr<std::string> FileSystem::ReadContentRange(
   return content.substr(begin, std::min(length, content.size() - begin));
 }
 
+absl::Status FileSystem::WriteContent(std::string_view /*path*/, std::string_view /*content*/) const {
+  return absl::UnimplementedError("filesystem backend does not support writing");
+}
+
 }  // namespace xff::vfs
