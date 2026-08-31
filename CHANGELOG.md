@@ -13,6 +13,8 @@
   `mboworks_mbo` and `mboworks_bashtest`.
 - Keep post-release CHANGELOG updates as ordinary human-reviewed pull requests;
   the release helper no longer arms them for automatic merging.
+- Add a non-publishing `--dry-run` mode to the release helper so its clean-main,
+  version, tag, and archive checks can be verified before creating a signed tag.
 
 ## Matching
 

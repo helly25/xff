@@ -17,7 +17,8 @@
 # Unit test for the pure, verifiable helpers in tools/trigger_release.sh - the
 # next-version choice (default minor bump, explicit override) and the strictly
 # greater X.Y.Z check that keeps it appropriate. The script is sourced behind its
-# main-guard, so no git/tag/PR side effects run. Run directly or via pre-commit.
+# main-guard, so no git/tag/PR side effects run. The actual clean-repository
+# `--dry-run` is exercised before a release. Run directly or via pre-commit.
 
 set -euo pipefail
 
