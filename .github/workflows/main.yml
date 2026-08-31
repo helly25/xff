@@ -53,7 +53,7 @@ jobs:
       # os/config/lockfile (the hash busts it when deps change); the restore-key seeds a
       # warm base from a previous lockfile after a bump.
       - name: Mount Bazel disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -67,7 +67,7 @@ jobs:
       # above; the non-clang cells keep their small (LLVM-free) repo cache.
       - name: Mount Bazel repo cache
         if: matrix.config.name != 'clang-asan'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -155,7 +155,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount the dedicated fuzz disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-fuzz-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -190,7 +190,7 @@ jobs:
       # dedicated cache rather than crowding out the ordinary GCC build. The stable key lets a
       # later run incrementally rebuild only changed coverage objects.
       - name: Mount Bazel coverage disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-coverage-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -199,7 +199,7 @@ jobs:
       # Reuse the normal Ubuntu/GCC repository cache: it contains the downloaded Bazel modules
       # needed by this full build, but not the hermetic LLVM archive fetched only by clang jobs.
       - name: Mount Bazel repo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-ubuntu-latest-default-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -311,7 +311,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-tsan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -348,7 +348,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-msan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -383,7 +383,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel repo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-minimal-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -418,7 +418,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel repo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-xff-md-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -496,7 +496,7 @@ jobs:
         # equivalent ran ~6 min warm. The post-job cleanup retains only the newest entry: if this
         # run saves successfully it supersedes the restored predecessor; if saving fails, that
         # predecessor remains newest and is retained.
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-${{ github.sha }}
@@ -526,7 +526,7 @@ jobs:
         # restore-only. Branches therefore get main's warm cache without each PR writing its own copy
         # and churning the 10 GB budget. `if: always()` so a red lint still preserves the compile work.
         if: always() && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-${{ github.sha }}
