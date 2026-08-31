@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #ifndef XFF_ARCHIVE_ARCHIVE_EXTENSION_H_

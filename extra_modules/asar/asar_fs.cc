@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xff/asar/asar_fs.h"
@@ -374,7 +374,7 @@ AsarFileSystem::AsarFileSystem(AsarFileSystem&& other) noexcept
       options_(other.options_),
       nodes_(std::move(other.nodes_)) {
   // The cache cannot be moved in the initializer list: its source must be locked first.
-  const absl::MutexLock lock(&other.cache_mutex_);
+  const absl::MutexLock lock(other.cache_mutex_);
   // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
   content_cache_ = std::move(other.content_cache_);
 }
@@ -565,14 +565,14 @@ absl::StatusOr<std::string> AsarFileSystem::ReadContent(std::string_view path) c
     return absl::FailedPreconditionError(absl::StrCat("not a regular ASAR member: ", *key));
   }
   {
-    const absl::MutexLock lock(&cache_mutex_);
+    const absl::MutexLock lock(cache_mutex_);
     if (const auto cached = content_cache_.find(*key); cached != content_cache_.end()) {
       return cached->second;
     }
   }
   MBO_ASSIGN_OR_RETURN(std::string content, ReadNodeContent(*key, node->second));
   {
-    const absl::MutexLock lock(&cache_mutex_);
+    const absl::MutexLock lock(cache_mutex_);
     content_cache_.emplace(*key, content);
   }
   return content;

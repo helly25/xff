@@ -1,5 +1,5 @@
 ---
-# Base ruleset is helly25/mbo's; xff relaxes checks that fight its documented idioms or are
+# Base ruleset is mboworks/mbo's; xff relaxes checks that fight its documented idioms or are
 # broken on this toolchain. Sorted alphabetically, ignoring the leading `-` (order matters:
 # a disable must follow the glob that enables it). Why each disable:
 # - Idiom conflicts: init-variables (declare-then-fill locals), avoid-magic-numbers
@@ -16,7 +16,7 @@
 #   (flags legitimate bitmask-enum casts), clang-analyzer-optin.performance.Padding (opt-in
 #   micro-optimization; our option/context structs are built once per run, field grouping wins).
 # - Broken: abseil-unchecked-statusor-access SEGFAULTS in clang-tidy 22.1.7 (dataflow analysis
-#   crashes on our StatusOr patterns). Matches helly25/mbo; re-test on a future LLVM.
+#   crashes on our StatusOr patterns). Matches mboworks/mbo; re-test on a future LLVM.
 Checks: >
   *,
   abseil-*,

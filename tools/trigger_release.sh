@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +18,7 @@
 #
 #     tools/trigger_release.sh <version> [next_version]     # e.g. 0.2.0
 #
-# Derived from helly25/mbo's release trigger, adapted for what xff does
+# Derived from mboworks/mbo's release trigger, adapted for what xff does
 # differently (mbo is older; these are deliberate improvements):
 #
 #   * override-on-release (see tools/release_prep.sh): the tag is the version
@@ -35,7 +35,8 @@
 # tag, and its `v` tag is unused; dry-runs tools/release_prep.sh and reverts it
 # (so a tag is pushed only if the release build would pass); creates and pushes a
 # signed `vX.Y.Z` tag (triggering .github/workflows/release.yml); and opens an
-# auto-merging PR that prepends the next version's empty CHANGELOG section.
+# ordinary human-reviewed PR that prepends the next version's empty CHANGELOG
+# section.
 #
 # The next version defaults to a MINOR bump (0.2.0 -> 0.3.0), the usual cadence
 # for a pre-1.0, feature-driven series; pass `next_version` to override it. The
@@ -176,9 +177,9 @@ trigger_release_main() {
   git push origin "refs/tags/v${version}"
   echo "trigger_release: pushed tag v${version}; release.yml will build and publish."
 
-  # Open the next version's empty CHANGELOG section as an auto-merging PR, so the
-  # following release has somewhere to accumulate notes. No MODULE.bazel bump: the
-  # repo stays at the 0.0.0 sentinel (override-on-release).
+  # Open the next version's empty CHANGELOG section as an ordinary human-reviewed
+  # PR, so the following release has somewhere to accumulate notes. No MODULE.bazel
+  # bump: the repo stays at the 0.0.0 sentinel (override-on-release).
   local next_branch="chore/changelog_${next_version}"
   git checkout -b "${next_branch}"
   # Insert `# <next>` after the two-line SPDX header, above the current top version.
@@ -195,15 +196,14 @@ trigger_release_main() {
   if command -v gh >/dev/null 2>&1; then
     gh pr create \
       --title "Open CHANGELOG section for ${next_version}" \
-      --body "Prepends the empty \`# ${next_version}\` CHANGELOG section after releasing ${version}. Created by ${0}." \
-      && gh pr merge "${next_branch}" --auto --squash \
-      || echo "trigger_release: could not open/arm the ${next_version} PR; open it from '${next_branch}' manually."
+      --body "Prepends the empty \`# ${next_version}\` CHANGELOG section after releasing ${version}. Created by ${0}; requires normal human review and merge." \
+      || echo "trigger_release: could not open the ${next_version} PR; open it from '${next_branch}' manually."
   else
     echo "trigger_release: 'gh' not found; branch '${next_branch}' is pushed, create the PR manually."
   fi
 
   git checkout --quiet main
-  echo "trigger_release: done. Watch the release under Actions; the ${next_version} CHANGELOG PR is set to auto-merge."
+  echo "trigger_release: done. Watch the release under Actions and review the ${next_version} CHANGELOG PR normally."
 }
 
 # Run main only when executed, not when sourced (e.g. by the unit test). The

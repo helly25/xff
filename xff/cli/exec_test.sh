@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,14 +16,14 @@
 #
 # Binary-level test of -exec, which spawns real child processes: the `+` batch
 # form runs the command once with all matches appended, while `\;` runs it once
-# per match. Drives the real xff binary end to end (helly25/bashtest). The child
+# per match. Drives the real xff binary end to end (mboworks/bashtest). The child
 # appends a RUN marker per invocation (via $OUT, inherited from xff's env) plus
 # each path, so counting RUN lines distinguishes one batched call from N calls.
 
 set -euo pipefail
 
 # shellcheck disable=SC1090,SC1091,SC2154
-source "${helly25_bashtest}"
+source "${mboworks_bashtest}"
 
 # Path to the built xff binary in the test runfiles.
 _xff_bin() {

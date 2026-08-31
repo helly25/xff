@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,7 @@
 set -euo pipefail
 
 # shellcheck disable=SC1090,SC1091,SC2154
-source "${helly25_bashtest}"
+source "${mboworks_bashtest}"
 
 # The committed mini container in the runfiles. XFF_MINI_TAR is the rootpath the BUILD file passes;
 # a test runs with its runfiles as the working directory, so it resolves as-is - except when the

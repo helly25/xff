@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -786,7 +786,7 @@ std::optional<std::string_view> LicenseComponentOf(std::string_view name) {
 std::optional<Section> LicenseComponentSection(std::string_view component) {
   const std::vector<license::Notice> notices = license::Notices();
   // Case-insensitive: component names are proper nouns with capitals, slashes and parentheses
-  // ("RE2", "Abseil (C++)", "helly25/mbo"), and requiring the exact casing to read a LICENSE would
+  // ("RE2", "Abseil (C++)", "mboworks/mbo"), and requiring the exact casing to read a LICENSE would
   // be a spelling test rather than a lookup.
   const auto found = absl::c_find_if(notices, [component](const license::Notice& notice) {
     return absl::EqualsIgnoreCase(notice.component, component);

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #include <string_view>
@@ -15,7 +15,7 @@ const license::Registrar kSquashfsExtra{{
     .section_lead = true,
     .component = "xff SquashFS extra (@xff_squashfs)",
     .spdx = "Apache-2.0",
-    .text = "Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0. "
+    .text = "Copyright M. Boerger and the MBO Works authors. Licensed under the Apache License, Version 2.0. "
             "Adds independent SquashFS, Snap, and AppImage container reading to xff.",
 }};
 

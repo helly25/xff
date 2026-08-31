@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -119,7 +119,7 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@helly25_mbo//mbo/types:optional_ref_cc",
+        "@mboworks_mbo//mbo/types:optional_ref_cc",
         "@xff_extras_api//:archive_backend_cc",
     ],
 )
@@ -133,7 +133,7 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
+        "@mboworks_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -205,8 +205,8 @@ cc_library(
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
-        "@helly25_mbo//mbo/digest:digest_cc",
-        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@mboworks_mbo//mbo/digest:digest_cc",
+        "@mboworks_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:member_path_cc",
     ],
 )
@@ -224,7 +224,7 @@ cc_test(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
+        "@mboworks_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -247,9 +247,9 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
-        "@helly25_mbo//mbo/status:status_macros_cc",
-        "@helly25_mbo//mbo/types:optional_ref_cc",
         "@libarchive//libarchive",
+        "@mboworks_mbo//mbo/status:status_macros_cc",
+        "@mboworks_mbo//mbo/types:optional_ref_cc",
     ],
 )
 
@@ -271,7 +271,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
+        "@mboworks_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -286,7 +286,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
+        "@mboworks_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -301,8 +301,8 @@ cc_library(
         "@abseil-cpp//absl/algorithm:container",
         "@abseil-cpp//absl/status",
         "@abseil-cpp//absl/strings",
-        "@helly25_mbo//mbo/status:status_macros_cc",
         "@libarchive//libarchive",
+        "@mboworks_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:member_path_cc",
     ],
 )
@@ -322,8 +322,8 @@ cc_test(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
         "@libarchive//libarchive",
+        "@mboworks_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -343,8 +343,8 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
         "@libarchive//libarchive",
+        "@mboworks_mbo//mbo/testing:status_cc",
         "@xff_extras_api//:license_notice_cc",
     ],
 )
@@ -392,7 +392,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/time",
-        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@mboworks_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:member_path_cc",
         "@xff_extras_api//:vfs_cc",
     ],
@@ -418,8 +418,8 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
         "@libarchive//libarchive",
+        "@mboworks_mbo//mbo/testing:status_cc",
         "@xff_extras_api//:member_path_cc",
         "@xff_extras_api//:vfs_cc",
     ],
@@ -441,7 +441,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@bzip2//:bz2",
-        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@mboworks_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:license_notice_cc",
         "@xff_extras_api//:member_path_cc",
         "@zlib",
@@ -464,7 +464,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
+        "@mboworks_mbo//mbo/testing:status_cc",
         "@zlib",
     ],
 )
@@ -511,7 +511,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
+        "@mboworks_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -532,7 +532,7 @@ cc_test(
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
+        "@mboworks_mbo//mbo/testing:status_cc",
     ],
 )
 
@@ -556,7 +556,7 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:span",
-        "@helly25_mbo//mbo/status:status_macros_cc",
+        "@mboworks_mbo//mbo/status:status_macros_cc",
         "@xff_extras_api//:archive_backend_cc",
         "@xff_extras_api//:member_path_cc",
         "@xff_extras_api//:vfs_cc",
@@ -578,7 +578,7 @@ cc_test(
         "@abseil-cpp//absl/status",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:status_cc",
+        "@mboworks_mbo//mbo/testing:status_cc",
         "@xff_extras_api//:archive_backend_cc",
     ],
 )

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xff/asar/asar_register.h"
@@ -34,7 +34,7 @@ const license::Registrar kExtensionNotice{{
     .section_lead = true,
     .component = "xff Electron ASAR extra (@xff_asar)",
     .spdx = "Apache-2.0",
-    .text = "Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.",
+    .text = "Copyright M. Boerger and the MBO Works authors. Licensed under the Apache License, Version 2.0.",
 }};
 
 // NOLINTNEXTLINE(fuchsia-statically-constructed-objects,cert-err58-cpp)

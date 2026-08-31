@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -407,10 +407,10 @@ TEST_F(HelpTest, LicenseComponentTopicLeadsWithCopyrightThenTheComponentThenItsL
   // `--help=license=COMPONENT`: #142's rule still holds (xff's own copyright + grant lead), then
   // the component's own notice line, then the body of the license it names.
   EXPECT_THAT(
-      RenderTopicDoc("license=helly25/mbo"),
+      RenderTopicDoc("license=mboworks/mbo"),
       AllOf(
           HasSubstr("eXtended File Find"),  // #142: the grant leads every license page
-          HasSubstr("helly25/mbo"), HasSubstr("[Apache-2.0]"), HasSubstr("Apache License")));
+          HasSubstr("mboworks/mbo"), HasSubstr("[Apache-2.0]"), HasSubstr("Apache License")));
 }
 
 TEST_F(HelpTest, LicenseComponentMatchesRegardlessOfCase) {

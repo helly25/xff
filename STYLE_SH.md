@@ -1,6 +1,6 @@
 # Shell Style
 
-The shell style for helly25 repositories. Follow the
+The shell style for MBO Works repositories. Follow the
 [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html) unless this document
 or the repository's automated tooling says otherwise.
 
@@ -48,7 +48,7 @@ Diagnostics go to standard error.
 
 ## Tests and temporary files
 
-- Shell tests use `helly25_bashtest` and its expectation helpers.
+- Shell tests use `mboworks_bashtest` and its expectation helpers.
 - Put test-owned files below `${BASHTEST_TMPDIR}`. Bashtest removes that directory even when an
   expectation fails; do not add per-case cleanup traps or `rm -rf` calls.
 - Allocate retained fixtures with `test_tmpdir name`. This creates a unique directory below

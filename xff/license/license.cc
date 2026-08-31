@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,9 +34,9 @@ const Registrar kRe2{
      .spdx = "BSD-3-Clause",
      .text = "Copyright (c) 2009 The RE2 Authors. Redistribution permitted under the BSD-3-Clause license."}};
 const Registrar kMbo{
-    {.component = "helly25/mbo",
+    {.component = "mboworks/mbo",
      .spdx = "Apache-2.0",
-     .text = "Copyright helly25. Licensed under the Apache License, Version 2.0."}};
+     .text = "Copyright MBO Works. Licensed under the Apache License, Version 2.0."}};
 const Registrar kNlohmannJson{
     {.component = "JSON for Modern C++ (nlohmann/json)",
      .spdx = "MIT",
@@ -51,7 +51,7 @@ const LicenseBodyRegistrar kApache2{{.spdx = "Apache-2.0", .text = LicenseText()
 
 std::string_view CopyrightNotice() {
   return "xff - eXtended File Find\n"
-         "Copyright 2026 M. Boerger, The helly25 authors\n"
+         "Copyright M. Boerger and the MBO Works authors\n"
          "Licensed under the Apache License, Version 2.0.\n";
 }
 

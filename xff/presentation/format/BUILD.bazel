@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,6 +39,6 @@ cc_test(
         ":format_cc",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
-        "@helly25_mbo//mbo/testing:matchers_cc",
+        "@mboworks_mbo//mbo/testing:matchers_cc",
     ],
 )

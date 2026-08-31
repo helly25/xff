@@ -3,7 +3,7 @@
 > Detailed spec for parallel directory traversal and `--sort` (issue #43).
 > **Refines** `design.md` §"Cross-cutting concerns" (Determinism). Where the two
 > differ, this document is authoritative for traversal/ordering specifically.
-> Status: **Draft** · 2026-06-27 · Org: helly25
+> Status: **Draft** · 2026-06-27 · Org: MBO Works
 
 ## Purpose
 

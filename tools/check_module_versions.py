@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +21,7 @@ build time (see ``docs/`` / the release workflow). This check keeps those locati
 from drifting, so the release's stamp always has one uniform value to replace and no
 component silently ships a stale version.
 
-The version is bound across all in-repo modules (``helly25_xff`` and every extra such
+The version is bound across all in-repo modules (``mboworks_xff`` and every extra such
 as ``xff_extras_api`` / ``xff_pcre2``): the extras are not published independently, so
 they carry the tool's version rather than their own. The locations checked:
 
@@ -30,7 +30,7 @@ they carry the tool's version rather than their own. The locations checked:
 * the ``xff --version`` literal in ``xff/cli/main.cc`` (what the binary reports).
 
 ``bazel-*`` symlink trees and ``external/`` checkouts are skipped, and third-party
-``bazel_dep``s (abseil, rules_cc, helly25_mbo, ...) are left alone.
+``bazel_dep``s (abseil, rules_cc, mboworks_mbo, ...) are left alone.
 
 Usage:
     check_module_versions.py [EXPECTED]

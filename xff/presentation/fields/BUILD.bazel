@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,9 +35,9 @@ cc_library(
         "//xff/vfs:vfs_cc",
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/time",
-        "@helly25_mbo//mbo/container:limited_map_cc",
-        "@helly25_mbo//mbo/types:optional_ref_cc",
-        "@helly25_mbo//mbo/types:string_or_view_cc",
+        "@mboworks_mbo//mbo/container:limited_map_cc",
+        "@mboworks_mbo//mbo/types:optional_ref_cc",
+        "@mboworks_mbo//mbo/types:string_or_view_cc",
     ],
 )
 

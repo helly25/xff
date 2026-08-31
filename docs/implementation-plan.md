@@ -1,7 +1,7 @@
 # xff - Implementation Plan
 
 > Companion to [design.md](design.md). **design.md** is the source of truth for _what / why_ (decisions); this plan owns _how / in what order_ (build, modules, sequencing). Decisions are referenced here, not re-argued.
-> Status: **Draft** · 2026-06-07 · Org: helly25 · License: **Apache-2.0**
+> Status: **Draft** · 2026-06-07 · Org: MBO Works · License: **Apache-2.0**
 > Design review #1–#13 complete and incorporated (see design.md §Notes/Decisions); the module seams and phasing below reflect every resolved decision.
 
 ## Toolchain

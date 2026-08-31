@@ -1,7 +1,7 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+# SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 # SPDX-License-Identifier: Apache-2.0
 #
-# pre-commit configuration (https://pre-commit.com). Mirrors helly25/mbo's set,
+# pre-commit configuration (https://pre-commit.com). Mirrors mboworks/mbo's set,
 # trimmed to what xff uses. Install once with `pre-commit install`; run over the
 # whole tree with `pre-commit run -a`. clang-tidy runs here too (the local-only
 # `clang-tidy` hook, via tools/clang_tidy.sh using the hermetic clang-22); the
@@ -121,7 +121,7 @@ repos:
         name: No TODOs without context
         description: |
           Use referenceable TODOs: `// TODO(user@helly25.com)` or
-          `# FIXME(https://github.com/helly25/xff/issues/42)`. A bare TODO/FIXME with no
+          `# FIXME(https://github.com/mboworks/xff/issues/42)`. A bare TODO/FIXME with no
           email or URL is unmaintainable. To skip once, run
           `SKIP="no-todos-without-context" pre-commit`.
         language: pygrep
@@ -172,7 +172,7 @@ repos:
         name: No hand-rolled grep in bashtests
         description: |
           Project convention (STYLE_CPP.md): a bashtest asserts on captured output with
-          helly25/bashtest content matchers (expect_output_contains / expect_matches),
+          mboworks/bashtest content matchers (expect_output_contains / expect_matches),
           never a hand-rolled shell `grep` - a piped `grep -q` misfires on SIGPIPE under
           `set -o pipefail`, and `$(grep -q ... && echo yes)` drops the output on failure.
           To skip once, run `SKIP="no-shell-grep-in-bashtests" pre-commit`.
@@ -184,7 +184,7 @@ repos:
         description: |
           Project convention (STYLE_SH.md): allocate bashtest scratch directories with
           `test_tmpdir`, so bashtest owns uniqueness, retention, and cleanup. The standalone
-          release-prep test is excluded because it deliberately does not use helly25_bashtest.
+          release-prep test is excluded because it deliberately does not use mboworks_bashtest.
           To skip once, run `SKIP="managed-tmpdirs-in-bashtests" pre-commit`.
         language: script
         entry: tools/check_bashtest_tmpdirs.sh

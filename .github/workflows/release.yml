@@ -111,7 +111,7 @@ jobs:
           {
             echo "### Production coverage"
             echo
-            echo "[Browse the HTML coverage report](https://helly25.github.io/xff/coverage/${coverage_page}/)."
+            echo "[Browse the HTML coverage report](https://mboworks.github.io/xff/coverage/${coverage_page}/)."
             echo
             echo "[Download this run's coverage artifact](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}#artifacts)."
             echo

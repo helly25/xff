@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -116,7 +116,7 @@ const license::Registrar kFuseExtraNotice{{
     .section_lead = true,
     .component = "xff FUSE extra (@xff_fuse)",
     .spdx = "Apache-2.0",
-    .text = "Copyright 2026 M. Boerger, The helly25 authors. Licensed under the Apache License, Version 2.0.\n"
+    .text = "Copyright M. Boerger and the MBO Works authors. Licensed under the Apache License, Version 2.0.\n"
             "Mounting is implemented against the FUSE 3 lowlevel interface using this extra's own\n"
             "declarations (xff/fuse/fuse_abi.h); no libfuse code is compiled, linked, or shipped. At\n"
             "runtime the host's FUSE implementation is loaded dynamically - libfuse3 on Linux and BSD,\n"
