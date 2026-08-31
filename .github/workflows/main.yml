@@ -43,7 +43,7 @@ jobs:
               name: clang-asan
               flags: "--config=clang --config=asan"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # bazelisk launches the Bazel release pinned in .bazelversion.
       - uses: bazelbuild/setup-bazelisk@v3
       # Persist Bazel's disk cache (compiled action outputs) so each run reuses prior
@@ -125,7 +125,7 @@ jobs:
   trunk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Trunk Check
         uses: trunk-io/trunk-action@v1
 
@@ -135,7 +135,7 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
@@ -152,7 +152,7 @@ jobs:
     env:
       FUZZ_SECONDS_PER_TARGET: ${{ github.ref == 'refs/heads/main' && 300 || 60 }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount the dedicated fuzz disk cache
         uses: actions/cache@v4
@@ -182,7 +182,7 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: bazelbuild/setup-bazelisk@v3
@@ -308,7 +308,7 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel disk cache
         uses: actions/cache@v4
@@ -345,7 +345,7 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel disk cache
         uses: actions/cache@v4
@@ -380,7 +380,7 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel repo cache
         uses: actions/cache@v4
@@ -415,7 +415,7 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel repo cache
         uses: actions/cache@v4
@@ -450,7 +450,7 @@ jobs:
       actions: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history so a branch can diff against main to pick changed sources
       - uses: bazelbuild/setup-bazelisk@v3
@@ -597,7 +597,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Ensure every job is wired into this gate
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
