@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-31 12:54:56</td>
+            <td class="headerValue">2026-08-31 14:30:29</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.8&nbsp;%</td>
@@ -78,7 +78,7 @@
               <td>
 <pre class="sourceHeading">             Branch data     Line data    Source code</pre>
 <pre class="source">
-<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors</span>
+<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors</span>
 <span id="L2"><span class="lineNum">       2</span>                 :             : // SPDX-License-Identifier: Apache-2.0</span>
 <span id="L3"><span class="lineNum">       3</span>                 :             : //</span>
 <span id="L4"><span class="lineNum">       4</span>                 :             : // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
@@ -2887,9 +2887,9 @@
 <span id="L2735"><span class="lineNum">    2735</span>                 :             :       // Only the spec's explicit parts matter here, so validate against a concrete default.</span>
 <span id="L2736"><span class="lineNum">    2736</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 7 times"> + </span>]:<span class="tlaGNC">          10 :       if (!hash::ParseSpec(expr.hash_spec, &quot;sha256&quot;, hash::Encoding::kHex).has_value()) {</span></span>
 <span id="L2737"><span class="lineNum">    2737</span>                 :             :         return absl::InvalidArgumentError(</span>
-<span id="L2738"><span class="lineNum">    2738</span>                 :<span class="tlaGNC">          12 :             absl::StrCat(</span></span>
+<span id="L2738"><span class="lineNum">    2738</span>                 :<span class="tlaGNC">           9 :             absl::StrCat(</span></span>
 <span id="L2739"><span class="lineNum">    2739</span>                 :<span class="tlaGNC">           6 :                 &quot;'&quot;, expr.descriptor-&gt;name, &quot;:&quot;, expr.hash_spec,</span></span>
-<span id="L2740"><span class="lineNum">    2740</span>                 :<span class="tlaGNC">           3 :                 &quot;': unknown algorithm or encoding (ALGO[/ENCODING]; encoding is hex or base64)&quot;));</span></span>
+<span id="L2740"><span class="lineNum">    2740</span>                 :<span class="tlaGNC">           6 :                 &quot;': unknown algorithm or encoding (ALGO[/ENCODING]; encoding is hex or base64)&quot;));</span></span>
 <span id="L2741"><span class="lineNum">    2741</span>                 :             :       }</span>
 <span id="L2742"><span class="lineNum">    2742</span>                 :             :     }</span>
 <span id="L2743"><span class="lineNum">    2743</span>                 :<span class="tlaGNC">         985 :     return absl::OkStatus();</span></span>

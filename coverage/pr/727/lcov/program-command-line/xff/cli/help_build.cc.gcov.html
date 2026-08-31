@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-31 12:54:56</td>
+            <td class="headerValue">2026-08-31 14:30:29</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">97.9&nbsp;%</td>
@@ -78,7 +78,7 @@
               <td>
 <pre class="sourceHeading">             Branch data     Line data    Source code</pre>
 <pre class="source">
-<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors</span>
+<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors</span>
 <span id="L2"><span class="lineNum">       2</span>                 :             : // SPDX-License-Identifier: Apache-2.0</span>
 <span id="L3"><span class="lineNum">       3</span>                 :             : //</span>
 <span id="L4"><span class="lineNum">       4</span>                 :             : // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
@@ -874,7 +874,7 @@
 <span id="L786"><span class="lineNum">     786</span>                 :<span class="tlaGNC">          14 : std::optional&lt;Section&gt; LicenseComponentSection(std::string_view component) {</span></span>
 <span id="L787"><span class="lineNum">     787</span>                 :<span class="tlaGNC">          14 :   const std::vector&lt;license::Notice&gt; notices = license::Notices();</span></span>
 <span id="L788"><span class="lineNum">     788</span>                 :             :   // Case-insensitive: component names are proper nouns with capitals, slashes and parentheses</span>
-<span id="L789"><span class="lineNum">     789</span>                 :             :   // (&quot;RE2&quot;, &quot;Abseil (C++)&quot;, &quot;helly25/mbo&quot;), and requiring the exact casing to read a LICENSE would</span>
+<span id="L789"><span class="lineNum">     789</span>                 :             :   // (&quot;RE2&quot;, &quot;Abseil (C++)&quot;, &quot;mboworks/mbo&quot;), and requiring the exact casing to read a LICENSE would</span>
 <span id="L790"><span class="lineNum">     790</span>                 :             :   // be a spelling test rather than a lookup.</span>
 <span id="L791"><span class="lineNum">     791</span>                 :<span class="tlaGNC">          14 :   const auto found = absl::c_find_if(notices, [component](const license::Notice&amp; notice) {</span></span>
 <span id="L792"><span class="lineNum">     792</span>                 :<span class="tlaGNC">          87 :     return absl::EqualsIgnoreCase(notice.component, component);</span></span>
