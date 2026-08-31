@@ -47,7 +47,7 @@ jobs:
           key: bazel-repo-ubuntu-latest-default-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-repo-ubuntu-latest-default-
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install GCC 14 and coverage dependencies

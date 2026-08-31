@@ -136,7 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - uses: pre-commit/action@v3.0.1
@@ -205,7 +205,7 @@ jobs:
           key: bazel-repo-ubuntu-latest-default-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-repo-ubuntu-latest-default-
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install GCC 14 and integration-test dependencies
@@ -454,7 +454,7 @@ jobs:
         with:
           fetch-depth: 0 # full history so a branch can diff against main to pick changed sources
       - uses: bazelbuild/setup-bazelisk@v3
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Select the scope to lint
