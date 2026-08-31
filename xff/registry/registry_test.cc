@@ -19,6 +19,7 @@
 #include <optional>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "xff/registry/descriptor.h"
@@ -43,6 +44,7 @@ struct RegistryTest : ::testing::Test {};
 TEST_F(RegistryTest, DescriptorSupportsStringification) {
   ASSERT_THAT(Lookup("-name"), Optional(_));
   EXPECT_THAT(absl::StrCat(*Lookup("-name")), Eq("-name"));
+  EXPECT_THAT(absl::StrFormat("%v", *Lookup("-name")), Eq("-name"));
 }
 
 TEST_F(RegistryTest, LooksUpKnownTokens) {
