@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-31 13:05:21</td>
+            <td class="headerValue">2026-08-31 14:44:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -78,7 +78,7 @@
               <td>
 <pre class="sourceHeading">             Branch data     Line data    Source code</pre>
 <pre class="source">
-<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors</span>
+<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors</span>
 <span id="L2"><span class="lineNum">       2</span>                 :             : // SPDX-License-Identifier: Apache-2.0</span>
 <span id="L3"><span class="lineNum">       3</span>                 :             : //</span>
 <span id="L4"><span class="lineNum">       4</span>                 :             : // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
@@ -152,8 +152,8 @@
 <span id="L69"><span class="lineNum">      69</span>                 :             :   }</span>
 <span id="L70"><span class="lineNum">      70</span>                 :<span class="tlaGNC">        1828 :   const char before = text[at - 1];</span></span>
 <span id="L71"><span class="lineNum">      71</span>                 :<span class="tlaGNC">        1828 :   return IsSeparator(before)</span></span>
-<span id="L72"><span class="lineNum">      72</span>   [<span class="tlaGBC" title="branch 0 was taken 1536 times"> + </span><span class="tlaGBC" title="branch 1 was taken 292 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1493 times"> + </span><span class="tlaGBC" title="branch 3 was taken 43 times"> + </span>]:<span class="tlaGNC">        3321 :          || (absl::ascii_islower(static_cast&lt;unsigned char&gt;(before))</span></span>
-<span id="L73"><span class="lineNum">      73</span>         [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1480 times"> + </span>]:<span class="tlaGNC">        3321 :              &amp;&amp; absl::ascii_isupper(static_cast&lt;unsigned char&gt;(text[at])));</span></span>
+<span id="L72"><span class="lineNum">      72</span>   [<span class="tlaGBC" title="branch 0 was taken 1536 times"> + </span><span class="tlaGBC" title="branch 1 was taken 292 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1494 times"> + </span><span class="tlaGBC" title="branch 3 was taken 42 times"> + </span>]:<span class="tlaGNC">        3322 :          || (absl::ascii_islower(static_cast&lt;unsigned char&gt;(before))</span></span>
+<span id="L73"><span class="lineNum">      73</span>         [<span class="tlaGBC" title="branch 0 was taken 13 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1481 times"> + </span>]:<span class="tlaGNC">        3322 :              &amp;&amp; absl::ascii_isupper(static_cast&lt;unsigned char&gt;(text[at])));</span></span>
 <span id="L74"><span class="lineNum">      74</span>                 :             : }</span>
 <span id="L75"><span class="lineNum">      75</span>                 :             : </span>
 <span id="L76"><span class="lineNum">      76</span>                 :<span class="tlaGNC">       17915 : bool SameChar(char have, char want, bool fold_case) {</span></span>

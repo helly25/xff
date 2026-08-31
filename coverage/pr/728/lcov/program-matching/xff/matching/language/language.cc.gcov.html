@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-31 13:05:21</td>
+            <td class="headerValue">2026-08-31 14:44:05</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -78,7 +78,7 @@
               <td>
 <pre class="sourceHeading">             Branch data     Line data    Source code</pre>
 <pre class="source">
-<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors</span>
+<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors</span>
 <span id="L2"><span class="lineNum">       2</span>                 :             : // SPDX-License-Identifier: Apache-2.0</span>
 <span id="L3"><span class="lineNum">       3</span>                 :             : </span>
 <span id="L4"><span class="lineNum">       4</span>                 :             : #include &quot;xff/matching/language/language.h&quot;</span>
@@ -619,7 +619,7 @@
 <span id="L532"><span class="lineNum">     532</span>                 :<span class="tlaGNC">         828 : absl::Status Configure(absl::Span&lt;const std::string&gt; files, ConflictPolicy conflicts) {</span></span>
 <span id="L533"><span class="lineNum">     533</span>         [<span class="tlaGBC" title="branch 0 was taken 799 times"> + </span><span class="tlaGBC" title="branch 1 was taken 29 times"> + </span>]:<span class="tlaGNC">         828 :   if (files.empty()) {</span></span>
 <span id="L534"><span class="lineNum">     534</span>                 :<span class="tlaGNC">         799 :     State&amp; state = GlobalState();</span></span>
-<span id="L535"><span class="lineNum">     535</span>                 :<span class="tlaGNC">         799 :     const absl::MutexLock lock(&amp;state.mutex);</span></span>
+<span id="L535"><span class="lineNum">     535</span>                 :<span class="tlaGNC">         799 :     const absl::MutexLock lock(state.mutex);</span></span>
 <span id="L536"><span class="lineNum">     536</span>                 :<span class="tlaGNC">         799 :     state.active.reset();</span></span>
 <span id="L537"><span class="lineNum">     537</span>                 :<span class="tlaGNC">         799 :     return absl::OkStatus();</span></span>
 <span id="L538"><span class="lineNum">     538</span>                 :<span class="tlaGNC">         799 :   }</span></span>
@@ -633,7 +633,7 @@
 <span id="L546"><span class="lineNum">     546</span>   [<span class="tlaGBC" title="branch 0 was taken 17 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span><span class="tlaGBC" title="branch 2 was taken 17 times"> + </span><span class="tlaGBC" title="branch 3 was taken 15 times"> + </span>]:<span class="tlaGNC">          46 :   }</span></span>
 <span id="L547"><span class="lineNum">     547</span>                 :<span class="tlaGNC">          14 :   Finalize(vocabulary);</span></span>
 <span id="L548"><span class="lineNum">     548</span>                 :<span class="tlaGNC">          14 :   State&amp; state = GlobalState();</span></span>
-<span id="L549"><span class="lineNum">     549</span>                 :<span class="tlaGNC">          28 :   const absl::MutexLock lock(&amp;state.mutex);</span></span>
+<span id="L549"><span class="lineNum">     549</span>                 :<span class="tlaGNC">          28 :   const absl::MutexLock lock(state.mutex);</span></span>
 <span id="L550"><span class="lineNum">     550</span>                 :<span class="tlaGNC">          28 :   auto snapshot = std::make_unique&lt;const LanguageVocabulary&gt;(std::move(vocabulary));</span></span>
 <span id="L551"><span class="lineNum">     551</span>                 :<span class="tlaGNC">          14 :   state.snapshots.push_back(std::move(snapshot));</span></span>
 <span id="L552"><span class="lineNum">     552</span>                 :<span class="tlaGNC">          14 :   state.active.set_ref(*state.snapshots.back());</span></span>
@@ -642,7 +642,7 @@
 <span id="L555"><span class="lineNum">     555</span>                 :             : </span>
 <span id="L556"><span class="lineNum">     556</span>                 :<span class="tlaGNC">         131 : LanguageSnapshot ActiveSnapshot() {</span></span>
 <span id="L557"><span class="lineNum">     557</span>                 :<span class="tlaGNC">         131 :   State&amp; state = GlobalState();</span></span>
-<span id="L558"><span class="lineNum">     558</span>                 :<span class="tlaGNC">         131 :   const absl::MutexLock lock(&amp;state.mutex);</span></span>
+<span id="L558"><span class="lineNum">     558</span>                 :<span class="tlaGNC">         131 :   const absl::MutexLock lock(state.mutex);</span></span>
 <span id="L559"><span class="lineNum">     559</span>                 :<span class="tlaGNC">         131 :   EnsureConfigured(state);</span></span>
 <span id="L560"><span class="lineNum">     560</span>                 :<span class="tlaGNC">         131 :   return LanguageSnapshot(*state.active);</span></span>
 <span id="L561"><span class="lineNum">     561</span>                 :<span class="tlaGNC">         131 : }</span></span>
