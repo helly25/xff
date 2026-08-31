@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-31 12:56:55</td>
+            <td class="headerValue">2026-08-31 15:10:07</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -78,7 +78,7 @@
               <td>
 <pre class="sourceHeading">             Branch data     Line data    Source code</pre>
 <pre class="source">
-<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors</span>
+<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors</span>
 <span id="L2"><span class="lineNum">       2</span>                 :             : // SPDX-License-Identifier: Apache-2.0</span>
 <span id="L3"><span class="lineNum">       3</span>                 :             : //</span>
 <span id="L4"><span class="lineNum">       4</span>                 :             : // Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
@@ -1039,27 +1039,27 @@
 <span id="L912"><span class="lineNum">     912</span>                 :             :   }</span>
 <span id="L913"><span class="lineNum">     913</span>         [<span class="tlaGBC" title="branch 0 was taken 24 times"> + </span><span class="tlaGBC" title="branch 1 was taken 28 times"> + </span>]:<span class="tlaGNC">          52 :   if (const auto ext = FirstXffExtension(*expression); ext.has_value()) {</span></span>
 <span id="L914"><span class="lineNum">     914</span>                 :             :     return absl::InvalidArgumentError(</span>
-<span id="L915"><span class="lineNum">     915</span>                 :<span class="tlaGNC">          72 :         absl::StrCat(</span></span>
+<span id="L915"><span class="lineNum">     915</span>                 :<span class="tlaGNC">          48 :         absl::StrCat(</span></span>
 <span id="L916"><span class="lineNum">     916</span>                 :<span class="tlaGNC">          24 :             &quot;'&quot;, ext-&gt;name,</span></span>
-<span id="L917"><span class="lineNum">     917</span>                 :<span class="tlaGNC">          24 :             &quot;' is an xff extension, not available under the find style (--config=find); use --config=xff&quot;));</span></span>
+<span id="L917"><span class="lineNum">     917</span>                 :<span class="tlaGNC">          48 :             &quot;' is an xff extension, not available under the find style (--config=find); use --config=xff&quot;));</span></span>
 <span id="L918"><span class="lineNum">     918</span>                 :             :   }</span>
 <span id="L919"><span class="lineNum">     919</span>         [<span class="tlaGBC" title="branch 0 was taken 5 times"> + </span><span class="tlaGBC" title="branch 1 was taken 23 times"> + </span>]:<span class="tlaGNC">          28 :   if (const std::string_view op = FirstXffOperator(*expression); !op.empty()) {</span></span>
 <span id="L920"><span class="lineNum">     920</span>                 :             :     return absl::InvalidArgumentError(</span>
 <span id="L921"><span class="lineNum">     921</span>                 :<span class="tlaGNC">          10 :         absl::StrCat(</span></span>
-<span id="L922"><span class="lineNum">     922</span>                 :<span class="tlaGNC">           5 :             &quot;'&quot;, op, &quot;' is an xff extension, not available under the find style (--config=find); use --config=xff&quot;));</span></span>
+<span id="L922"><span class="lineNum">     922</span>                 :<span class="tlaGNC">          10 :             &quot;'&quot;, op, &quot;' is an xff extension, not available under the find style (--config=find); use --config=xff&quot;));</span></span>
 <span id="L923"><span class="lineNum">     923</span>                 :             :   }</span>
 <span id="L924"><span class="lineNum">     924</span>         [<span class="tlaGBC" title="branch 0 was taken 2 times"> + </span><span class="tlaGBC" title="branch 1 was taken 21 times"> + </span>]:<span class="tlaGNC">          23 :   if (const auto dur = FirstXffDurationValue(*expression); dur.has_value()) {</span></span>
 <span id="L925"><span class="lineNum">     925</span>                 :             :     return absl::InvalidArgumentError(</span>
-<span id="L926"><span class="lineNum">     926</span>                 :<span class="tlaGNC">           6 :         absl::StrCat(</span></span>
+<span id="L926"><span class="lineNum">     926</span>                 :<span class="tlaGNC">           4 :         absl::StrCat(</span></span>
 <span id="L927"><span class="lineNum">     927</span>                 :<span class="tlaGNC">           2 :             &quot;the duration form of '&quot;, dur-&gt;descriptor-&gt;name,</span></span>
 <span id="L928"><span class="lineNum">     928</span>                 :             :             &quot;' (e.g. \&quot;-3 weeks 3 hours\&quot;) is an xff extension, not available under the find style (--config=find); &quot;</span>
-<span id="L929"><span class="lineNum">     929</span>                 :<span class="tlaGNC">           2 :             &quot;use a day count, a unit suffix like -1h, or --config=xff&quot;));</span></span>
+<span id="L929"><span class="lineNum">     929</span>                 :<span class="tlaGNC">           4 :             &quot;use a day count, a unit suffix like -1h, or --config=xff&quot;));</span></span>
 <span id="L930"><span class="lineNum">     930</span>                 :             :   }</span>
 <span id="L931"><span class="lineNum">     931</span>         [<span class="tlaGBC" title="branch 0 was taken 4 times"> + </span><span class="tlaGBC" title="branch 1 was taken 17 times"> + </span>]:<span class="tlaGNC">          21 :   if (const auto pf = FirstXffPrintfField(*expression); pf.has_value()) {</span></span>
 <span id="L932"><span class="lineNum">     932</span>                 :             :     return absl::InvalidArgumentError(</span>
-<span id="L933"><span class="lineNum">     933</span>                 :<span class="tlaGNC">          12 :         absl::StrCat(</span></span>
+<span id="L933"><span class="lineNum">     933</span>                 :<span class="tlaGNC">           8 :         absl::StrCat(</span></span>
 <span id="L934"><span class="lineNum">     934</span>                 :<span class="tlaGNC">           4 :             &quot;the '%{field}' escape in '&quot;, pf-&gt;descriptor-&gt;name,</span></span>
-<span id="L935"><span class="lineNum">     935</span>                 :<span class="tlaGNC">           4 :             &quot;' is an xff extension, not available under the find style (--config=find); use --config=xff&quot;));</span></span>
+<span id="L935"><span class="lineNum">     935</span>                 :<span class="tlaGNC">           8 :             &quot;' is an xff extension, not available under the find style (--config=find); use --config=xff&quot;));</span></span>
 <span id="L936"><span class="lineNum">     936</span>                 :             :   }</span>
 <span id="L937"><span class="lineNum">     937</span>                 :<span class="tlaGNC">          17 :   return absl::OkStatus();</span></span>
 <span id="L938"><span class="lineNum">     938</span>                 :             : }</span>

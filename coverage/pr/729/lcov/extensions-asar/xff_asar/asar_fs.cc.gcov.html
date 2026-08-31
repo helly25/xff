@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-31 12:56:55</td>
+            <td class="headerValue">2026-08-31 15:10:07</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -78,7 +78,7 @@
               <td>
 <pre class="sourceHeading">             Branch data     Line data    Source code</pre>
 <pre class="source">
-<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) 2026 M. Boerger, The helly25 authors</span>
+<span id="L1"><span class="lineNum">       1</span>                 :             : // SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors</span>
 <span id="L2"><span class="lineNum">       2</span>                 :             : // SPDX-License-Identifier: Apache-2.0</span>
 <span id="L3"><span class="lineNum">       3</span>                 :             : </span>
 <span id="L4"><span class="lineNum">       4</span>                 :             : #include &quot;xff/asar/asar_fs.h&quot;</span>
@@ -467,7 +467,7 @@
 <span id="L374"><span class="lineNum">     374</span>                 :<span class="tlaGNC">          22 :       options_(other.options_),</span></span>
 <span id="L375"><span class="lineNum">     375</span>                 :<span class="tlaGNC">          44 :       nodes_(std::move(other.nodes_)) {</span></span>
 <span id="L376"><span class="lineNum">     376</span>                 :             :   // The cache cannot be moved in the initializer list: its source must be locked first.</span>
-<span id="L377"><span class="lineNum">     377</span>                 :<span class="tlaGNC">          22 :   const absl::MutexLock lock(&amp;other.cache_mutex_);</span></span>
+<span id="L377"><span class="lineNum">     377</span>                 :<span class="tlaGNC">          22 :   const absl::MutexLock lock(other.cache_mutex_);</span></span>
 <span id="L378"><span class="lineNum">     378</span>                 :             :   // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)</span>
 <span id="L379"><span class="lineNum">     379</span>                 :<span class="tlaGNC">          22 :   content_cache_ = std::move(other.content_cache_);</span></span>
 <span id="L380"><span class="lineNum">     380</span>                 :<span class="tlaGNC">          22 : }</span></span>
@@ -660,14 +660,14 @@
 <span id="L565"><span class="lineNum">     565</span>                 :<span class="tlaGNC">           1 :     return absl::FailedPreconditionError(absl::StrCat(&quot;not a regular ASAR member: &quot;, *key));</span></span>
 <span id="L566"><span class="lineNum">     566</span>                 :             :   }</span>
 <span id="L567"><span class="lineNum">     567</span>                 :             :   {</span>
-<span id="L568"><span class="lineNum">     568</span>                 :<span class="tlaGNC">          10 :     const absl::MutexLock lock(&amp;cache_mutex_);</span></span>
+<span id="L568"><span class="lineNum">     568</span>                 :<span class="tlaGNC">          10 :     const absl::MutexLock lock(cache_mutex_);</span></span>
 <span id="L569"><span class="lineNum">     569</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">          10 :     if (const auto cached = content_cache_.find(*key); cached != content_cache_.end()) {</span></span>
 <span id="L570"><span class="lineNum">     570</span>                 :<span class="tlaGNC">           1 :       return cached-&gt;second;</span></span>
 <span id="L571"><span class="lineNum">     571</span>                 :             :     }</span>
 <span id="L572"><span class="lineNum">     572</span>         [<span class="tlaGBC" title="branch 0 was taken 9 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1 time"> + </span>]:<span class="tlaGNC">          10 :   }</span></span>
 <span id="L573"><span class="lineNum">     573</span>         [<span class="tlaGBC" title="branch 0 was taken 3 times"> + </span><span class="tlaGBC" title="branch 1 was taken 6 times"> + </span>]:<span class="tlaGNC">           9 :   MBO_ASSIGN_OR_RETURN(std::string content, ReadNodeContent(*key, node-&gt;second));</span></span>
 <span id="L574"><span class="lineNum">     574</span>                 :             :   {</span>
-<span id="L575"><span class="lineNum">     575</span>                 :<span class="tlaGNC">           6 :     const absl::MutexLock lock(&amp;cache_mutex_);</span></span>
+<span id="L575"><span class="lineNum">     575</span>                 :<span class="tlaGNC">           6 :     const absl::MutexLock lock(cache_mutex_);</span></span>
 <span id="L576"><span class="lineNum">     576</span>                 :<span class="tlaGNC">           6 :     content_cache_.emplace(*key, content);</span></span>
 <span id="L577"><span class="lineNum">     577</span>                 :<span class="tlaGNC">           6 :   }</span></span>
 <span id="L578"><span class="lineNum">     578</span>                 :<span class="tlaGNC">           6 :   return content;</span></span>
