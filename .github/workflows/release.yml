@@ -31,7 +31,7 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel coverage disk cache
         uses: actions/cache@v4
@@ -142,7 +142,7 @@ jobs:
           - os: macos-latest
             platform: macos
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # bazelisk launches the Bazel release pinned in .bazelversion.
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel caches
@@ -188,7 +188,7 @@ jobs:
       # Creating a release writes to the repo's releases.
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
           pattern: xff-*
