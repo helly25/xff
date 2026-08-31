@@ -51,7 +51,7 @@ local_path_override(
     path = "xff_extras_api",
 )
 
-bazel_dep(name = "helly25_mbo", version = "0.13.0")
+bazel_dep(name = "helly25_mbo", version = "0.13.2")
 git_override(
     module_name = "helly25_mbo",
     commit = "de0e95622d1f33907e106906dfe7d204691633b6",

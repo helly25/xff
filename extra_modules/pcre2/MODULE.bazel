@@ -25,4 +25,4 @@ bazel_dep(name = "xff_extras_api", version = "0.0.0")
 
 # helly25_mbo resolves via the root module's override (overrides are root-global).
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
-bazel_dep(name = "helly25_mbo", version = "0.11.1")
+bazel_dep(name = "helly25_mbo", version = "0.13.2")

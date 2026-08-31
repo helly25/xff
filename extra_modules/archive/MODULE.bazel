@@ -39,4 +39,4 @@ bazel_dep(name = "xff_extras_api", version = "0.0.0")
 # (mbo/testing status matchers) AND by production code here, for the MBO_ASSIGN_OR_RETURN /
 # MBO_RETURN_IF_ERROR status macros that STYLE_CPP.md requires instead of hand-written propagation.
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
-bazel_dep(name = "helly25_mbo", version = "0.13.0")
+bazel_dep(name = "helly25_mbo", version = "0.13.2")

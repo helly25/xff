@@ -30,4 +30,4 @@ bazel_dep(name = "bazel_skylib", version = "1.9.0")
 
 # helly25_mbo resolves via the root module's override (overrides are root-global).
 bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
-bazel_dep(name = "helly25_mbo", version = "0.13.0")
+bazel_dep(name = "helly25_mbo", version = "0.13.2")
