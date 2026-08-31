@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-08-30 23:00:24</td>
+            <td class="headerValue">2026-08-30 23:57:34</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">96.6&nbsp;%</td>
@@ -3992,8 +3992,8 @@
 <span id="L3817"><span class="lineNum">    3817</span>                 :             :   // NOLINTNEXTLINE(readability-function-cognitive-complexity): one extracted sink dispatch shared by walk and replay</span>
 <span id="L3818"><span class="lineNum">    3818</span>                 :<span class="tlaGNC">        3661 :   const auto finish_entry = [&amp;](const Visit&amp; visit, std::map&lt;std::string, std::string&gt;&amp; outputs, bool matched,</span></span>
 <span id="L3819"><span class="lineNum">    3819</span>                 :             :                                 std::optional&lt;bool&gt; verification) {</span>
-<span id="L3820"><span class="lineNum">    3820</span>         [<span class="tlaGBC" title="branch 0 was taken 1733 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1928 times"> + </span>]:<span class="tlaGNC">        3661 :     if (matched) {</span></span>
-<span id="L3821"><span class="lineNum">    3821</span>                 :<span class="tlaGNC">        1733 :       any_match = true;</span></span>
+<span id="L3820"><span class="lineNum">    3820</span>         [<span class="tlaGBC" title="branch 0 was taken 1734 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1927 times"> + </span>]:<span class="tlaGNC">        3661 :     if (matched) {</span></span>
+<span id="L3821"><span class="lineNum">    3821</span>                 :<span class="tlaGNC">        1734 :       any_match = true;</span></span>
 <span id="L3822"><span class="lineNum">    3822</span>                 :             :     }</span>
 <span id="L3823"><span class="lineNum">    3823</span>                 :             :     const bool counted =</span>
 <span id="L3824"><span class="lineNum">    3824</span>                 :<span class="tlaGNC">        3661 :         *archive_aggregate == ArchiveAggregate::kBoth</span></span>
@@ -4003,7 +4003,7 @@
 <span id="L3827"><span class="lineNum">    3827</span>         [<span class="tlaGBC" title="branch 0 was taken 3652 times"> + </span><span class="tlaGBC" title="branch 1 was taken 9 times"> + </span>]:<span class="tlaGNC">        3661 :     if (counted) {</span></span>
 <span id="L3828"><span class="lineNum">    3828</span>                 :<span class="tlaGNC">        3652 :       FeedVerificationSummaries(summaries, summary_cells, visit, verification);</span></span>
 <span id="L3829"><span class="lineNum">    3829</span>                 :             :     }</span>
-<span id="L3830"><span class="lineNum">    3830</span>   [<span class="tlaGBC" title="branch 0 was taken 1733 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1928 times"> + </span><span class="tlaGBC" title="branch 2 was taken 385 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1348 times"> + </span>]:<span class="tlaGNC">        3661 :     if (matched &amp;&amp; any_reduction) {</span></span>
+<span id="L3830"><span class="lineNum">    3830</span>   [<span class="tlaGBC" title="branch 0 was taken 1734 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1927 times"> + </span><span class="tlaGBC" title="branch 2 was taken 385 times"> + </span><span class="tlaGBC" title="branch 3 was taken 1349 times"> + </span>]:<span class="tlaGNC">        3661 :     if (matched &amp;&amp; any_reduction) {</span></span>
 <span id="L3831"><span class="lineNum">    3831</span>         [<span class="tlaGBC" title="branch 0 was taken 67 times"> + </span><span class="tlaGBC" title="branch 1 was taken 318 times"> + </span>]:<span class="tlaGNC">         385 :       if (pack_target.has_value()) {</span></span>
 <span id="L3832"><span class="lineNum">    3832</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 66 times"> + </span>]:<span class="tlaGNC">          67 :         if (visit.metadata.source == vfs::Source::kArchiveMember) {</span></span>
 <span id="L3833"><span class="lineNum">    3833</span>                 :<span class="tlaGNC">           1 :           pack_saw_member = true;</span></span>
@@ -4050,7 +4050,7 @@
 <span id="L3871"><span class="lineNum">    3871</span>                 :<span class="tlaGNC">         267 :         FeedSummaries(summaries, summary_templates, summary_cells, key_ctx, visit);</span></span>
 <span id="L3872"><span class="lineNum">    3872</span>                 :<span class="tlaGNC">         267 :         FeedHistograms(histograms, histogram_cells, visit, *visit.fs);</span></span>
 <span id="L3873"><span class="lineNum">    3873</span>                 :<span class="tlaGNC">         267 :       }</span></span>
-<span id="L3874"><span class="lineNum">    3874</span>   [<span class="tlaGBC" title="branch 0 was taken 1348 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1928 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1085 times"> + </span><span class="tlaGBC" title="branch 3 was taken 263 times"> + </span> :<span class="tlaGNC">        3661 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
+<span id="L3874"><span class="lineNum">    3874</span>   [<span class="tlaGBC" title="branch 0 was taken 1349 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1927 times"> + </span><span class="tlaGBC" title="branch 2 was taken 1085 times"> + </span><span class="tlaGBC" title="branch 3 was taken 264 times"> + </span> :<span class="tlaGNC">        3661 :     } else if (matched &amp;&amp; implicit_print &amp;&amp; (!max_results-&gt;has_value() || listed_results &lt; **max_results)) {</span></span>
 <span class="lineNum">        </span> <span class="tlaGBC" title="branch 4 was taken 35 times"> + </span><span class="tlaGBC" title="branch 5 was taken 1050 times"> + </span><span class="tlaGBC" title="branch 6 was taken 15 times"> + </span><span class="tlaGBC" title="branch 7 was taken 20 times"> + </span><span class="tlaGBC" title="branch 8 was taken 1065 times"> + </span> 
 <span class="lineNum">        </span>             <span class="tlaGBC" title="branch 9 was taken 2211 times"> + </span>]
 <span id="L3875"><span class="lineNum">    3875</span>                 :<span class="tlaGNC">        1065 :       ++listed_results;</span></span>
