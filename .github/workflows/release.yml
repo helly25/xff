@@ -31,23 +31,23 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel coverage disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-coverage-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-disk-coverage-
       - name: Mount Bazel repo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-ubuntu-latest-default-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-repo-ubuntu-latest-default-
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install GCC 14 and coverage dependencies
@@ -117,7 +117,7 @@ jobs:
             echo
             cat coverage-summary.md
           } >>"${GITHUB_STEP_SUMMARY}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -142,11 +142,11 @@ jobs:
           - os: macos-latest
             platform: macos
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # bazelisk launches the Bazel release pinned in .bazelversion.
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel caches
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/bazel-disk
@@ -175,7 +175,7 @@ jobs:
           full="$(bazel cquery -c opt --config=xff_full --output=files //xff/cli:xff_full 2>/dev/null)"
           install -m 0755 "${lean}" "dist/xff-${PLATFORM}-${arch}"
           install -m 0755 "${full}" "dist/xff_full-${PLATFORM}-${arch}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: xff-${{ matrix.platform }}
           path: dist/*
@@ -188,8 +188,8 @@ jobs:
       # Creating a release writes to the repo's releases.
       contents: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           pattern: xff-*
           path: dist

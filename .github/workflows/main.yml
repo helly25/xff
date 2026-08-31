@@ -43,7 +43,7 @@ jobs:
               name: clang-asan
               flags: "--config=clang --config=asan"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # bazelisk launches the Bazel release pinned in .bazelversion.
       - uses: bazelbuild/setup-bazelisk@v3
       # Persist Bazel's disk cache (compiled action outputs) so each run reuses prior
@@ -53,7 +53,7 @@ jobs:
       # os/config/lockfile (the hash busts it when deps change); the restore-key seeds a
       # warm base from a previous lockfile after a bump.
       - name: Mount Bazel disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -67,7 +67,7 @@ jobs:
       # above; the non-clang cells keep their small (LLVM-free) repo cache.
       - name: Mount Bazel repo cache
         if: matrix.config.name != 'clang-asan'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-${{ matrix.os }}-${{ matrix.config.name }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -125,7 +125,7 @@ jobs:
   trunk:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Trunk Check
         uses: trunk-io/trunk-action@v1
 
@@ -135,8 +135,8 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - uses: pre-commit/action@v3.0.1
@@ -152,10 +152,10 @@ jobs:
     env:
       FUZZ_SECONDS_PER_TARGET: ${{ github.ref == 'refs/heads/main' && 300 || 60 }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount the dedicated fuzz disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-fuzz-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -182,7 +182,7 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: bazelbuild/setup-bazelisk@v3
@@ -190,7 +190,7 @@ jobs:
       # dedicated cache rather than crowding out the ordinary GCC build. The stable key lets a
       # later run incrementally rebuild only changed coverage objects.
       - name: Mount Bazel coverage disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-coverage-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -199,13 +199,13 @@ jobs:
       # Reuse the normal Ubuntu/GCC repository cache: it contains the downloaded Bazel modules
       # needed by this full build, but not the hermetic LLVM archive fetched only by clang jobs.
       - name: Mount Bazel repo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-ubuntu-latest-default-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-repo-ubuntu-latest-default-
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Install GCC 14 and integration-test dependencies
@@ -285,7 +285,7 @@ jobs:
             echo
             cat coverage-summary.md
           } >>"${GITHUB_STEP_SUMMARY}"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -308,10 +308,10 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-tsan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -345,10 +345,10 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-msan-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -380,10 +380,10 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel repo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-minimal-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -415,10 +415,10 @@ jobs:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel repo cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
           key: bazel-repo-xff-md-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
@@ -450,11 +450,11 @@ jobs:
       actions: write
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history so a branch can diff against main to pick changed sources
       - uses: bazelbuild/setup-bazelisk@v3
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Select the scope to lint
@@ -496,7 +496,7 @@ jobs:
         # equivalent ran ~6 min warm. The post-job cleanup retains only the newest entry: if this
         # run saves successfully it supersedes the restored predecessor; if saving fails, that
         # predecessor remains newest and is retained.
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-${{ github.sha }}
@@ -526,7 +526,7 @@ jobs:
         # restore-only. Branches therefore get main's warm cache without each PR writing its own copy
         # and churning the 10 GB budget. `if: always()` so a red lint still preserves the compile work.
         if: always() && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/.cache/bazel-disk
           key: bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-${{ github.sha }}
@@ -597,7 +597,7 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Ensure every job is wired into this gate
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}

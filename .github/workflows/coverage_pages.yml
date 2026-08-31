@@ -28,11 +28,11 @@ jobs:
     steps:
       # This workflow always comes from the trusted default branch. It consumes the report emitted
       # by an unprivileged test run; PR code never receives the token that updates Pages.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: source
           ref: main
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           path: site
           ref: coverage-pages
