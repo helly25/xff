@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger, the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,7 +51,7 @@ const LicenseBodyRegistrar kApache2{{.spdx = "Apache-2.0", .text = LicenseText()
 
 std::string_view CopyrightNotice() {
   return "xff - eXtended File Find\n"
-         "Copyright M. Boerger and the MBO Works authors\n"
+         "Copyright M. Boerger, the MBO Works authors\n"
          "Licensed under the Apache License, Version 2.0.\n";
 }
 

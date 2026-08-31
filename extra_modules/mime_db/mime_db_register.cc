@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: Copyright (c) M. Boerger and the MBO Works authors
+// SPDX-FileCopyrightText: Copyright (c) M. Boerger, the MBO Works authors
 // SPDX-License-Identifier: Apache-2.0
 
 #include "xff/license/notice.h"
@@ -11,7 +11,7 @@ const license::Registrar kExtensionNotice{{
     .section_lead = true,
     .component = "xff MIME database extra (@xff_mime_db)",
     .spdx = "Apache-2.0",
-    .text = "Copyright M. Boerger and the MBO Works authors. Licensed under the Apache License, Version 2.0.",
+    .text = "Copyright M. Boerger, the MBO Works authors. Licensed under the Apache License, Version 2.0.",
 }};
 
 const license::Registrar kMimeDbNotice{{
