@@ -16,7 +16,7 @@
 #
 # Cut an xff release. Run locally from a clean `main`:
 #
-#     tools/trigger_release.sh <version> [next_version]     # e.g. 0.2.0
+#     tools/trigger_release.sh [--dry-run] <version> [next_version]
 #
 # Derived from mboworks/mbo's release trigger, adapted for what xff does
 # differently (mbo is older; these are deliberate improvements):
@@ -33,10 +33,11 @@
 # It refuses to run unless HEAD is a clean `main` at `origin/main`, the version
 # is X.Y.Z matching the top CHANGELOG.md heading, greater than the latest release
 # tag, and its `v` tag is unused; dry-runs tools/release_prep.sh and reverts it
-# (so a tag is pushed only if the release build would pass); creates and pushes a
-# signed `vX.Y.Z` tag (triggering .github/workflows/release.yml); and opens an
-# ordinary human-reviewed PR that prepends the next version's empty CHANGELOG
-# section.
+# (so a tag is pushed only if the release build would pass). With `--dry-run`, it
+# stops after those checks and reports the tag and follow-up PR it would create.
+# Otherwise it creates and pushes a signed `vX.Y.Z` tag (triggering
+# .github/workflows/release.yml) and opens an ordinary human-reviewed PR that
+# prepends the next version's empty CHANGELOG section.
 #
 # The next version defaults to a MINOR bump (0.2.0 -> 0.3.0), the usual cadence
 # for a pre-1.0, feature-driven series; pass `next_version` to override it. The
@@ -115,7 +116,13 @@ latest_release_version() {
 }
 
 trigger_release_main() {
-  [[ ${#} -ge 1 && ${#} -le 2 ]] || die "usage: ${0} <version> [next_version]   (e.g. 0.2.0)"
+  local dry_run=false
+  if [[ "${1:-}" == "--dry" || "${1:-}" == "--dry-run" ]]; then
+    dry_run=true
+    shift
+  fi
+  [[ ${#} -ge 1 && ${#} -le 2 ]] \
+    || die "usage: ${0} [--dry-run] <version> [next_version]   (e.g. 0.3.0)"
   local version="${1}" next_arg="${2:-}"
   # Releases are strictly numeric <major>.<minor>.<patch> (the `v` is added here).
   [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
@@ -171,6 +178,12 @@ trigger_release_main() {
     grab && /^# [0-9]/ { exit }
     grab { print }
   ' CHANGELOG.md)"
+
+  if [[ "${dry_run}" == true ]]; then
+    echo "trigger_release: [dry-run] would create and push signed tag v${version} at $(git rev-parse HEAD)."
+    echo "trigger_release: [dry-run] would open chore/changelog_${next_version} for ${next_version}."
+    return
+  fi
 
   # Tag (signed, v-prefixed) and push. The tag push triggers release.yml.
   git tag -s -a "v${version}" -m "Release ${version}" -m "${notes}"
