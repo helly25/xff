@@ -53,7 +53,7 @@ bazel_dep(name = "rules_cc", version = "0.2.22")
 # runtime print "library too old, some operations may not work" and clamp - a warning about US, not
 # about it. Fields are only ever APPENDED to that struct, so our prefix means the same thing to every
 # 3.x runtime.
-bazel_dep(name = "abseil-cpp", version = "20250814.2")
+bazel_dep(name = "abseil-cpp", version = "20260817.0")
 bazel_dep(name = "googletest", version = "1.18.0.bcr.1")
 bazel_dep(name = "mboworks_mbo", version = "0.14.0")
 bazel_dep(name = "xff_extras_api", version = "0.0.0")
