@@ -107,7 +107,7 @@ test::cookbook_recipes_are_all_tested() {
   while IFS= read -r line; do
     [[ "${line}" =~ ^[[:space:]]+xff[[:space:]] ]] && count=$((count + 1))
   done <<<"${cookbook}"
-  expect_eq "8" "${count}" # a new/removed recipe: add/remove a test::recipe_* case and update this
+  expect_eq "9" "${count}" # a new/removed recipe: add/remove a test::recipe_* case and update this
 
   # One distinctive token per tested recipe (keep aligned with the cases below).
   expect_output_contains 'sort -rn | head' "${cookbook}"   # ten largest files
@@ -117,6 +117,7 @@ test::cookbook_recipes_are_all_tested() {
   expect_output_contains 'git blame' "${cookbook}"         # per-file git-blame line counts
   expect_output_contains '-capturedir:blame' "${cookbook}" # author line counts, natively
   expect_output_contains '-hash:sha256' "${cookbook}"      # checksum manifest for a tree
+  expect_output_contains '--compare=diff' "${cookbook}"    # patch between repository trees
   expect_output_contains '--format=jsonl' "${cookbook}"    # recently changed files as rows
 }
 
@@ -200,6 +201,25 @@ test::recipe_checksum_manifest_for_a_tree() {
   digest="${first%% *}" # `<digest>  <path>` -> the digest
   expect_eq "64" "${#digest}"
   expect_matches '^[0-9a-f]+$' "${digest}" # sha256 hex
+}
+
+test::recipe_patch_between_repository_trees() {
+  local trees old_tree new_tree out rc
+  trees="$(test_tmpdir compare_trees)"
+  old_tree="${trees}/old-tree"
+  new_tree="${trees}/new-tree"
+  mkdir -p "${old_tree}" "${new_tree}"
+  printf 'before\n' >"${old_tree}/changed.txt"
+  printf 'after\n' >"${new_tree}/changed.txt"
+  printf 'ignored.txt\n' >"${old_tree}/.gitignore"
+  printf 'ignored.txt\n' >"${new_tree}/.gitignore"
+  printf 'old noise\n' >"${old_tree}/ignored.txt"
+  printf 'new noise\n' >"${new_tree}/ignored.txt"
+  out="$(xff --compare=diff "${old_tree}" "${new_tree}" 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_output_contains '--- a/changed.txt' "${out}"
+  expect_output_contains '+++ b/changed.txt' "${out}"
+  expect_output_not_contains 'ignored.txt' "${out}" # each tree applied its own .gitignore
 }
 
 test::recipe_recently_changed_as_machine_rows() {

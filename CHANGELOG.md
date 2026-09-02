@@ -18,6 +18,11 @@
 
 ## Matching
 
+- Add `--compare[=status|diff] LEFT RIGHT` tree comparison. It applies each repository's
+  `.gitignore` rules independently, skips VCS metadata, and compares text and binary files byte for
+  byte. Status output reports `left-only`, `right-only`, `identical`, and `different` paths selected
+  by `--compare-select`; diff output produces a unified tree patch. Unlike the one-sided `-diff`
+  expression action, it inventories both roots and therefore finds right-only paths.
 - Add `-similar[:WIDTH[:PCT%]] TARGET`, an exact reference-file near-duplicate matcher using unique
   contiguous word shingles and Jaccard overlap. It defaults to five-word shingles and an 80%
   threshold, treats punctuation and whitespace as word boundaries, folds ASCII case, and skips

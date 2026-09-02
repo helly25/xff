@@ -835,7 +835,8 @@ Section DescriptionSection() {
   Section description{.title = "Description"};
   description.children.push_back(ProseOf(
       "xff walks each starting path and acts on the entries matching an expression, like `find`(1). "
-      "With no path it searches the current directory; with no action it prints each match."));
+      "With no path it searches the current directory; with no action it prints each match. "
+      "`xff --compare LEFT RIGHT` instead compares two directory trees as selected status records or a patch."));
   description.children.push_back(ProseOf(
       "xff has two flavors selected by the program name: invoked as `find` it is strict find (only "
       "the standard vocabulary); invoked as `xff` it enables the modern extensions. An explicit "

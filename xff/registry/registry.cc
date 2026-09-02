@@ -461,7 +461,10 @@ constexpr std::array kDescriptors = std::to_array<Descriptor>({
         .details = "Compares the matched file against TARGET - a {field} template evaluated per entry, so it can name "
                    "a mirror path like `../b/{relpath}` - and is true when they are equal, false on a difference. The "
                    "optional :STYLE picks the output: unified `u3` (default; 3 lines of context), context `c`, "
-                   "normal `n`, side-by-side `y`, or `none` for just the boolean. Text files only; expensive.",
+                   "normal `n`, side-by-side `y`, or `none` for just the boolean. This is a one-sided expression "
+                   "action: it visits only the search roots, so it cannot report paths that exist only under TARGET. "
+                   "Use `--compare[=status|diff] LEFT RIGHT` for a symmetric, ignore-aware comparison of two complete "
+                   "trees. Text files only; expensive.",
         .kind = Kind::kAction,
         .arity = 1,
         .binding = Binding::kStyle,

@@ -49,7 +49,9 @@
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "mbo/container/limited_map.h"
+#include "mbo/diff/diff.h"
 #include "mbo/diff/diff_options.h"
+#include "mbo/file/artefact.h"
 #include "mbo/status/status_macros.h"
 #include "nlohmann/json.hpp"
 #include "xff/archive/archive_backend.h"
@@ -3080,6 +3082,314 @@ int FinishCollections(
 
 }  // namespace
 
+namespace {
+
+struct TreeCompareEntry {
+  std::string path;
+  vfs::Metadata metadata;
+};
+
+using TreeCompareEntries = std::map<std::string, TreeCompareEntry>;
+
+enum class TreeCompareOutput { kStatus, kDiff };
+
+struct TreeCompareSelection {
+  bool left_only = true;
+  bool right_only = true;
+  bool identical = false;
+  bool different = true;
+};
+
+TreeCompareOutput ResolveTreeCompareOutput(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--compare=";
+  TreeCompareOutput output = TreeCompareOutput::kStatus;
+  for (const std::string& global : globals) {
+    if (global.starts_with(kPrefix)) {
+      output = global.substr(kPrefix.size()) == "diff" ? TreeCompareOutput::kDiff : TreeCompareOutput::kStatus;
+    }
+  }
+  return output;
+}
+
+absl::StatusOr<TreeCompareSelection> ResolveTreeCompareSelection(const std::vector<std::string>& globals) {
+  constexpr std::string_view kPrefix = "--compare-select=";
+  TreeCompareSelection selection;
+  for (const std::string& global : globals) {
+    if (!global.starts_with(kPrefix)) {
+      continue;
+    }
+    selection = {.left_only = false, .right_only = false, .identical = false, .different = false};
+    for (const std::string_view kind : absl::StrSplit(global.substr(kPrefix.size()), ',')) {
+      if (kind == "all") {
+        selection = {.left_only = true, .right_only = true, .identical = true, .different = true};
+      } else if (kind == "left-only") {
+        selection.left_only = true;
+      } else if (kind == "right-only") {
+        selection.right_only = true;
+      } else if (kind == "identical") {
+        selection.identical = true;
+      } else if (kind == "different") {
+        selection.different = true;
+      } else {
+        return absl::InvalidArgumentError(
+            absl::StrCat(
+                "unknown comparison result '", kind, "' (use left-only, right-only, identical, different, or all)"));
+      }
+    }
+  }
+  return selection;
+}
+
+absl::StatusOr<bool> SameTreeEntry(
+    const vfs::FileSystem& fs,
+    const TreeCompareEntry& left,
+    const TreeCompareEntry& right) {
+  if (left.metadata.type != right.metadata.type) {
+    return false;
+  }
+  if (left.metadata.type == vfs::FileType::kDirectory) {
+    return true;
+  }
+  if (left.metadata.type == vfs::FileType::kSymlink) {
+    MBO_ASSIGN_OR_RETURN(const std::string left_target, fs.ReadLink(left.path));
+    MBO_ASSIGN_OR_RETURN(const std::string right_target, fs.ReadLink(right.path));
+    return left_target == right_target;
+  }
+  if (left.metadata.type != vfs::FileType::kRegular) {
+    return true;
+  }
+  if (left.metadata.size != right.metadata.size) {
+    return false;
+  }
+  constexpr std::size_t kChunkSize = std::size_t{64} * 1'024;
+  for (std::uint64_t offset = 0; offset < left.metadata.size; offset += kChunkSize) {
+    const auto length = static_cast<std::size_t>(std::min<std::uint64_t>(kChunkSize, left.metadata.size - offset));
+    MBO_ASSIGN_OR_RETURN(const std::string left_chunk, fs.ReadContentRange(left.path, offset, length));
+    MBO_ASSIGN_OR_RETURN(const std::string right_chunk, fs.ReadContentRange(right.path, offset, length));
+    if (left_chunk != right_chunk) {
+      return false;
+    }
+  }
+  return true;
+}
+
+absl::StatusOr<std::string> TreeEntryPatch(
+    const vfs::FileSystem& fs,
+    const std::optional<TreeCompareEntry>& left,
+    const std::optional<TreeCompareEntry>& right,
+    std::string_view relative_path,
+    const mbo::diff::DiffOptions& options) {
+  const std::string left_name = left.has_value() ? absl::StrCat("a/", relative_path) : "/dev/null";
+  const std::string right_name = right.has_value() ? absl::StrCat("b/", relative_path) : "/dev/null";
+  const bool regular = (!left.has_value() || left->metadata.type == vfs::FileType::kRegular)
+                       && (!right.has_value() || right->metadata.type == vfs::FileType::kRegular);
+  if (!regular) {
+    return absl::StrCat("Files ", left_name, " and ", right_name, " differ\n");
+  }
+  std::string left_data;
+  std::string right_data;
+  if (left.has_value()) {
+    MBO_ASSIGN_OR_RETURN(left_data, fs.ReadContent(left->path));
+  }
+  if (right.has_value()) {
+    MBO_ASSIGN_OR_RETURN(right_data, fs.ReadContent(right->path));
+  }
+  if (absl::StrContains(left_data.substr(0, content::kBinaryNulSniffBytes), '\0')
+      || absl::StrContains(right_data.substr(0, content::kBinaryNulSniffBytes), '\0')) {
+    return absl::StrCat("Binary files ", left_name, " and ", right_name, " differ\n");
+  }
+  return mbo::diff::Diff::FileDiff(
+      mbo::file::Artefact{.data = left_data, .name = left_name},
+      mbo::file::Artefact{.data = right_data, .name = right_name}, options);
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity): cohesive two-tree merge dispatch
+RunResult RunTreeCompare(
+    const parser::Command& command,
+    const vfs::FileSystem& fs,
+    EmitFn emit,
+    WalkErrorFn on_error,
+    std::optional<registry::Style> style) {
+  if (command.roots.size() != 2 || command.expression) {
+    on_error("--compare", absl::InvalidArgumentError("requires exactly two directory roots and no expression"));
+    return RunResult{.errors = 2};
+  }
+  for (const std::string& root : command.roots) {
+    const absl::StatusOr<vfs::Metadata> metadata = fs.Stat(root, /*follow_symlinks=*/true);
+    if (!metadata.ok()) {
+      on_error(root, metadata.status());
+      return RunResult{.errors = 2};
+    }
+    if (metadata->type != vfs::FileType::kDirectory) {
+      on_error(root, absl::InvalidArgumentError("tree comparison root is not a directory"));
+      return RunResult{.errors = 2};
+    }
+  }
+
+  const bool gitignore_on = !HasGlobal(command.globals, "--no-ignore") && !HasGlobal(command.globals, "-u");
+  const absl::StatusOr<absl::flat_hash_set<std::string>> skip_vcs = ResolveSkipVcs(command.globals, gitignore_on);
+  if (!skip_vcs.ok()) {
+    on_error("--skip-vcs", skip_vcs.status());
+    return RunResult{.errors = 2};
+  }
+  ignore::PatternList global_excludes;
+  if (gitignore_on) {
+    const repo::GitConfigEnv git_env{
+        .home = env::Get("HOME").value_or(""),
+        .xdg_config_home = env::Get("XDG_CONFIG_HOME").value_or(""),
+    };
+    if (const std::optional<std::string> path = repo::GlobalExcludesPath(fs, git_env)) {
+      if (const absl::StatusOr<std::string> content = fs.ReadContent(*path); content.ok()) {
+        global_excludes = ignore::PatternList::Parse(*content);
+      }
+    }
+  }
+  IgnoreFileCache ignore_files(
+      fs, ResolveIgnoreFileNames(command.globals, gitignore_on, style), gitignore_on, std::move(global_excludes));
+  const ignore::PatternList ignore_patterns = BuildIgnorePatterns(command.globals);
+  const RootedIgnoreFiles rooted_ignore_files = RootedIgnoreFiles::FromGlobals(fs, command.globals);
+  const bool skip_hidden = ResolveSkipHidden(command.globals, style);
+  const TreeCompareOutput output = ResolveTreeCompareOutput(command.globals);
+  const absl::StatusOr<TreeCompareSelection> selection_result = ResolveTreeCompareSelection(command.globals);
+  if (!selection_result.ok()) {
+    on_error("--compare-select", selection_result.status());
+    return RunResult{.errors = 2};
+  }
+  const TreeCompareSelection selection = *selection_result;
+  if (output == TreeCompareOutput::kDiff && selection.identical) {
+    on_error("--compare-select", absl::InvalidArgumentError("identical entries have no patch representation"));
+    return RunResult{.errors = 2};
+  }
+  mbo::diff::DiffOptions diff_options;
+  diff_options.output_format = mbo::diff::DiffOptions::OutputFormat::kUnified;
+  diff_options.time_format = "";
+  for (const std::string& global : command.globals) {
+    constexpr std::string_view kAlgorithm = "--diff-algorithm=";
+    constexpr std::string_view kContext = "--diff-context=";
+    if (global.starts_with(kAlgorithm)) {
+      const std::string_view value = std::string_view(global).substr(kAlgorithm.size());
+      const std::optional<mbo::diff::DiffOptions::Algorithm> algorithm =
+          mbo::diff::DiffOptions::ParseAlgorithmFlag(value);
+      if (!algorithm.has_value()) {
+        on_error("--diff-algorithm", absl::InvalidArgumentError(absl::StrCat("unknown diff algorithm '", value, "'")));
+        return RunResult{.errors = 2};
+      }
+      diff_options.algorithm = *algorithm;
+    } else if (global.starts_with(kContext)) {
+      const std::string_view value = std::string_view(global).substr(kContext.size());
+      if (!absl::SimpleAtoi(value, &diff_options.context_size)) {
+        on_error("--diff-context", absl::InvalidArgumentError(absl::StrCat("invalid context size '", value, "'")));
+        return RunResult{.errors = 2};
+      }
+    }
+  }
+
+  std::array<TreeCompareEntries, 2> entries;
+  WalkOptions options;
+  options.symlinks = SymlinkMode::kNever;
+  options.sort = SortOrder::kTree;
+  for (std::size_t side = 0; side < command.roots.size(); ++side) {
+    const std::string& root = command.roots[side];
+    const absl::Status status = Walk(
+        fs, {root}, options,
+        [&](const Visit& visit) {
+          if (skip_hidden && visit.depth > 0 && !visit.name.empty() && visit.name.front() == '.') {
+            return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;
+          }
+          if (visit.depth > 0 && skip_vcs->contains(visit.name)) {
+            return visit.metadata.type == vfs::FileType::kDirectory ? WalkAction::kPrune : WalkAction::kContinue;
+          }
+          const bool is_dir = visit.metadata.type == vfs::FileType::kDirectory;
+          const std::string_view rel = RelativeTo(visit.path, visit.root);
+          if (!rel.empty()) {
+            ignore::Decision decision = ignore_patterns.Match(rel, is_dir);
+            if (decision == ignore::Decision::kDefault && rooted_ignore_files.Active()) {
+              decision = rooted_ignore_files.Decide(AbsoluteDir(visit.path), is_dir);
+            }
+            if (decision == ignore::Decision::kDefault && ignore_files.Active()) {
+              decision = ignore_files.Decide(visit.path, visit.root, is_dir);
+            }
+            if (decision == ignore::Decision::kIgnore) {
+              return is_dir ? WalkAction::kPrune : WalkAction::kContinue;
+            }
+            entries.at(side).emplace(
+                std::string(rel), TreeCompareEntry{.path = std::string(visit.path), .metadata = visit.metadata});
+          }
+          return WalkAction::kContinue;
+        },
+        on_error);
+    if (!status.ok()) {
+      return RunResult{.errors = 1};
+    }
+  }
+
+  bool different = false;
+  auto left = entries[0].begin();
+  auto right = entries[1].begin();
+  while (left != entries[0].end() || right != entries[1].end()) {
+    if (right == entries[1].end() || (left != entries[0].end() && left->first < right->first)) {
+      if (left->second.metadata.type != vfs::FileType::kDirectory && selection.left_only) {
+        if (output == TreeCompareOutput::kStatus) {
+          emit(absl::StrCat("left-only\t", left->first, "\n"));
+        } else {
+          const absl::StatusOr<std::string> patch =
+              TreeEntryPatch(fs, left->second, std::nullopt, left->first, diff_options);
+          if (!patch.ok()) {
+            on_error(left->first, patch.status());
+            return RunResult{.errors = 1};
+          }
+          emit(*patch);
+        }
+      }
+      different = different || left->second.metadata.type != vfs::FileType::kDirectory;
+      ++left;
+    } else if (left == entries[0].end() || right->first < left->first) {
+      if (right->second.metadata.type != vfs::FileType::kDirectory && selection.right_only) {
+        if (output == TreeCompareOutput::kStatus) {
+          emit(absl::StrCat("right-only\t", right->first, "\n"));
+        } else {
+          const absl::StatusOr<std::string> patch =
+              TreeEntryPatch(fs, std::nullopt, right->second, right->first, diff_options);
+          if (!patch.ok()) {
+            on_error(right->first, patch.status());
+            return RunResult{.errors = 1};
+          }
+          emit(*patch);
+        }
+      }
+      different = different || right->second.metadata.type != vfs::FileType::kDirectory;
+      ++right;
+    } else {
+      const absl::StatusOr<bool> same = SameTreeEntry(fs, left->second, right->second);
+      if (!same.ok()) {
+        on_error(left->first, same.status());
+        return RunResult{.errors = 1};
+      }
+      if (*same && left->second.metadata.type != vfs::FileType::kDirectory && selection.identical) {
+        emit(absl::StrCat("identical\t", left->first, "\n"));
+      } else if (!*same && selection.different) {
+        if (output == TreeCompareOutput::kStatus) {
+          emit(absl::StrCat("different\t", left->first, "\n"));
+        } else {
+          const absl::StatusOr<std::string> patch =
+              TreeEntryPatch(fs, left->second, right->second, left->first, diff_options);
+          if (!patch.ok()) {
+            on_error(left->first, patch.status());
+            return RunResult{.errors = 1};
+          }
+          emit(*patch);
+        }
+      }
+      different = different || !*same;
+      ++left;
+      ++right;
+    }
+  }
+  return RunResult{.errors = 0, .any_match = different};
+}
+
+}  // namespace
+
 // Cohesive run dispatch; the visitor and post-walk sinks intentionally share this state.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity,readability-function-size,hicpp-function-size,google-readability-function-size)
 RunResult RunFind(
@@ -3088,6 +3398,11 @@ RunResult RunFind(
     EmitFn emit,
     WalkErrorFn on_error,
     std::optional<registry::Style> style) {
+  if (absl::c_any_of(command.globals, [](std::string_view global) {
+        return global == "--compare" || global.starts_with("--compare=");
+      })) {
+    return RunTreeCompare(command, fs, emit, on_error, style);
+  }
   bool any_match = false;
   std::vector<std::string> mime_vocabulary_files;
   mime::ConflictPolicy mime_conflicts = mime::ConflictPolicy::kError;

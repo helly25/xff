@@ -31,6 +31,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "mbo/testing/status.h"
+#include "xff/env/env.h"
 #include "xff/parser/parser.h"
 #include "xff/vfs/entry.h"
 #include "xff/vfs/filesystem.h"
@@ -73,6 +74,7 @@ struct RunTest : ::testing::Test {
   }
 
   void TearDown() override {
+    env::ClearForTesting();
     std::error_code ec;
     fs::remove_all(root_, ec);
   }
@@ -154,6 +156,162 @@ struct RunTest : ::testing::Test {
 TEST_F(RunTest, NoExpressionPrintsEverything) {
   EXPECT_THAT(
       RunExpr({}), UnorderedElementsAre(root_.string(), Path("a.txt"), Path("b.md"), Path("sub"), Path("sub/c.txt")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, CompareReportsOnlyTreeDiscrepanciesAndRespectsEachGitignore) {
+  const fs::path left = root_ / "left";
+  const fs::path right = root_ / "right";
+  ASSERT_TRUE(fs::create_directories(left / "nested"));
+  ASSERT_TRUE(fs::create_directories(right / "nested"));
+  { std::ofstream(left / ".gitignore") << "left-ignored\n"; }
+  { std::ofstream(right / ".gitignore") << "right-ignored\n"; }
+  { std::ofstream(left / "same") << "same"; }
+  { std::ofstream(right / "same") << "same"; }
+  { std::ofstream(left / "changed", std::ios::binary) << std::string("a\0b", 3); }
+  { std::ofstream(right / "changed", std::ios::binary) << std::string("a\0c", 3); }
+  { std::ofstream(left / "left-only") << "left"; }
+  { std::ofstream(right / "right-only") << "right"; }
+  { std::ofstream(left / "left-ignored") << "ignored"; }
+  { std::ofstream(right / "right-ignored") << "ignored"; }
+
+  EXPECT_THAT(
+      RunArgvRecords({"--compare", left.string(), right.string()}),
+      ElementsAre("different\t.gitignore", "different\tchanged", "left-only\tleft-only", "right-only\tright-only"));
+  EXPECT_THAT(last_errors_, 0);
+
+  EXPECT_THAT(
+      RunArgvRecords({"--compare=status", "--compare-select=identical", left.string(), right.string()}),
+      ElementsAre("identical\tsame"));
+  EXPECT_THAT(last_errors_, 0);
+
+  const std::vector<std::string> patch =
+      RunArgvRecords({"--compare=diff", "--compare-select=different", left.string(), right.string()});
+  EXPECT_THAT(patch, Contains(HasSubstr("--- a/.gitignore\n+++ b/.gitignore")));
+  EXPECT_THAT(patch, Contains("Binary files a/changed and b/changed differ"));
+  EXPECT_THAT(last_errors_, 0);
+
+  const std::vector<std::string> complete_patch = RunArgvRecords({"--compare=diff", left.string(), right.string()});
+  EXPECT_THAT(complete_patch, Contains(HasSubstr("--- a/left-only\n+++ /dev/null")));
+  EXPECT_THAT(complete_patch, Contains(HasSubstr("--- /dev/null\n+++ b/right-only")));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, CompareRequiresExactlyTwoRootsAndNoExpression) {
+  EXPECT_THAT(RunArgvRecords({"--compare", root_.string()}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+  EXPECT_THAT(RunArgvRecords({"--compare", root_.string(), root_.string(), "-name", "*.txt"}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+}
+
+TEST_F(RunTest, CompareSelectsEveryResultKind) {
+  const fs::path left = root_ / "select-left";
+  const fs::path right = root_ / "select-right";
+  ASSERT_TRUE(fs::create_directories(left));
+  ASSERT_TRUE(fs::create_directories(right));
+  { std::ofstream(left / "left") << "left"; }
+  { std::ofstream(right / "right") << "right"; }
+  { std::ofstream(left / "same") << "same"; }
+  { std::ofstream(right / "same") << "same"; }
+  { std::ofstream(left / "different") << "old"; }
+  { std::ofstream(right / "different") << "newer"; }
+
+  EXPECT_THAT(
+      RunArgvRecords({"--compare", "--compare-select=all", left.string(), right.string()}),
+      ElementsAre("different\tdifferent", "left-only\tleft", "right-only\tright", "identical\tsame"));
+  EXPECT_THAT(
+      RunArgvRecords({"--compare", "--compare-select=left-only,right-only", left.string(), right.string()}),
+      ElementsAre("left-only\tleft", "right-only\tright"));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, CompareHandlesFileKindsAndTraversalOptions) {
+  const fs::path left = root_ / "kinds-left";
+  const fs::path right = root_ / "kinds-right";
+  ASSERT_TRUE(fs::create_directories(left / ".hidden-dir"));
+  ASSERT_TRUE(fs::create_directories(right / ".hidden-dir"));
+  ASSERT_TRUE(fs::create_directories(left / ".git"));
+  ASSERT_TRUE(fs::create_directories(right / ".git"));
+  ASSERT_TRUE(fs::create_directories(left / "type-change"));
+  { std::ofstream(right / "type-change") << "file"; }
+  { std::ofstream(left / "size-change") << "short"; }
+  { std::ofstream(right / "size-change") << "considerably longer"; }
+  { std::ofstream(left / ".hidden") << "left"; }
+  { std::ofstream(right / ".hidden") << "right"; }
+  { std::ofstream(left / ".hidden-dir/value") << "left"; }
+  { std::ofstream(right / ".hidden-dir/value") << "right"; }
+  { std::ofstream(left / ".git/value") << "left"; }
+  { std::ofstream(right / ".git/value") << "right"; }
+  { std::ofstream(left / ".hg") << "left"; }
+  { std::ofstream(right / ".hg") << "right"; }
+  fs::create_symlink("target-a", left / "link");
+  fs::create_symlink("target-b", right / "link");
+
+  EXPECT_THAT(
+      RunArgvRecords({"--compare", "--no-hidden", left.string(), right.string()}),
+      ElementsAre("different\tlink", "different\tsize-change", "different\ttype-change"));
+  EXPECT_THAT(
+      RunArgvRecords({"--compare=diff", "--compare-select=different", left.string(), right.string()}),
+      Contains("Files a/link and b/link differ"));
+  EXPECT_THAT(
+      RunArgvRecords({"--compare", "--exclude=size-change", left.string(), right.string()}),
+      Not(Contains("different\tsize-change")));
+  EXPECT_THAT(
+      RunArgvRecords({"--compare", "--skip-vcs=hg", left.string(), right.string()}), Not(Contains("different\t.hg")));
+  EXPECT_THAT(
+      RunArgvRecords({"--compare", "--no-ignore", left.string(), right.string()}), Contains("different\t.git/value"));
+  EXPECT_THAT(RunArgvRecords({"-u", "--compare", left.string(), right.string()}), Contains("different\t.git/value"));
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, CompareAppliesExplicitAndGlobalIgnoreFiles) {
+  const fs::path left = root_ / "ignore-left";
+  const fs::path right = root_ / "ignore-right";
+  const fs::path config = root_ / "config";
+  ASSERT_TRUE(fs::create_directories(left));
+  ASSERT_TRUE(fs::create_directories(right));
+  ASSERT_TRUE(fs::create_directories(config / "git"));
+  { std::ofstream(left / "global") << "left"; }
+  { std::ofstream(right / "global") << "right"; }
+  { std::ofstream(left / "explicit") << "left"; }
+  { std::ofstream(right / "explicit") << "right"; }
+  { std::ofstream(config / "git/ignore") << "global\n"; }
+  const fs::path explicit_ignore = root_ / "extra.ignore";
+  { std::ofstream(explicit_ignore) << "ignore-left/explicit\nignore-right/explicit\n"; }
+  env::SetForTesting("XDG_CONFIG_HOME", config.string());
+
+  EXPECT_THAT(
+      RunArgvRecords({"--compare", "--ignore-file=" + explicit_ignore.string(), left.string(), right.string()}),
+      IsEmpty());
+  EXPECT_THAT(last_errors_, 0);
+}
+
+TEST_F(RunTest, CompareValidatesRootsSelectionsAndDiffOptions) {
+  const fs::path left = root_ / "options-left";
+  const fs::path right = root_ / "options-right";
+  ASSERT_TRUE(fs::create_directories(left));
+  ASSERT_TRUE(fs::create_directories(right));
+  { std::ofstream(left / "value") << "old\n"; }
+  { std::ofstream(right / "value") << "new\n"; }
+
+  EXPECT_THAT(RunArgvRecords({"--compare", (root_ / "missing").string(), right.string()}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+  EXPECT_THAT(RunArgvRecords({"--compare", (root_ / "a.txt").string(), right.string()}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+  EXPECT_THAT(RunArgvRecords({"--compare", "--compare-select=unknown", left.string(), right.string()}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+  EXPECT_THAT(RunArgvRecords({"--compare", "--skip-vcs=unknown", left.string(), right.string()}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+  EXPECT_THAT(
+      RunArgvRecords({"--compare=diff", "--compare-select=identical", left.string(), right.string()}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+  EXPECT_THAT(RunArgvRecords({"--compare=diff", "--diff-algorithm=unknown", left.string(), right.string()}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+  EXPECT_THAT(RunArgvRecords({"--compare=diff", "--diff-context=invalid", left.string(), right.string()}), IsEmpty());
+  EXPECT_THAT(last_errors_, 2);
+  EXPECT_THAT(
+      RunArgvRecords({"--compare=diff", "--diff-algorithm=myers", "--diff-context=0", left.string(), right.string()}),
+      Contains(HasSubstr("-old\n+new")));
   EXPECT_THAT(last_errors_, 0);
 }
 
