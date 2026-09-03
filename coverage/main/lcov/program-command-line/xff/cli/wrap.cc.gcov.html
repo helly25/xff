@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-01 08:19:00</td>
+            <td class="headerValue">2026-09-03 08:12:52</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -132,17 +132,17 @@
 <span id="L50"><span class="lineNum">      50</span>                 :             : </span>
 <span id="L51"><span class="lineNum">      51</span>                 :             : }  // namespace</span>
 <span id="L52"><span class="lineNum">      52</span>                 :             : </span>
-<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">       17720 : std::string WrapText(</span></span>
+<span id="L53"><span class="lineNum">      53</span>                 :<span class="tlaGNC">       17906 : std::string WrapText(</span></span>
 <span id="L54"><span class="lineNum">      54</span>                 :             :     std::string_view text,</span>
 <span id="L55"><span class="lineNum">      55</span>                 :             :     std::size_t width,</span>
 <span id="L56"><span class="lineNum">      56</span>                 :             :     std::string_view first_indent,</span>
 <span id="L57"><span class="lineNum">      57</span>                 :             :     std::string_view cont_indent) {</span>
-<span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">       17720 :   std::string out;</span></span>
-<span id="L59"><span class="lineNum">      59</span>         [<span class="tlaGBC" title="branch 0 was taken 17595 times"> + </span><span class="tlaGBC" title="branch 1 was taken 125 times"> + </span>]:<span class="tlaGNC">       17720 :   if (width == 0) {</span></span>
+<span id="L58"><span class="lineNum">      58</span>                 :<span class="tlaGNC">       17906 :   std::string out;</span></span>
+<span id="L59"><span class="lineNum">      59</span>         [<span class="tlaGBC" title="branch 0 was taken 17781 times"> + </span><span class="tlaGBC" title="branch 1 was taken 125 times"> + </span>]:<span class="tlaGNC">       17906 :   if (width == 0) {</span></span>
 <span id="L60"><span class="lineNum">      60</span>                 :             :     // No wrapping: the whole (already single-line) text on one indented line. Emitted</span>
 <span id="L61"><span class="lineNum">      61</span>                 :             :     // even when empty so it reproduces the pre-wrap &quot;indent + text + newline&quot; output.</span>
-<span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">       17595 :     absl::StrAppend(&amp;out, first_indent, text, &quot;\n&quot;);</span></span>
-<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">       17595 :     return out;</span></span>
+<span id="L62"><span class="lineNum">      62</span>                 :<span class="tlaGNC">       17781 :     absl::StrAppend(&amp;out, first_indent, text, &quot;\n&quot;);</span></span>
+<span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">       17781 :     return out;</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :             :   }</span>
 <span id="L65"><span class="lineNum">      65</span>                 :<span class="tlaGNC">         125 :   std::string_view indent = first_indent;</span></span>
 <span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">         125 :   std::string line;</span></span>
