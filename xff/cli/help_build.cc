@@ -1059,6 +1059,10 @@ Section GuideSection() {
   return help;
 }
 
+bool IsIgnoreTopicName(std::string_view name) {
+  return name == "ignore" || name == "ignores" || name == "vcs";
+}
+
 }  // namespace
 
 std::vector<std::string_view> LicenseComponentNames() {
@@ -1131,7 +1135,7 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(GrammarsSection());
   } else if (name == "content") {
     doc.sections.push_back(ContentSection(/*in_full=*/false));
-  } else if (name == "ignore" || name == "ignores" || name == "vcs") {
+  } else if (IsIgnoreTopicName(name)) {
     doc.sections.push_back(IgnoreSection(/*in_full=*/false));
   } else if (name == "archive" || name == "archives") {
     doc.sections.push_back(ArchiveSection(/*in_full=*/false));
