@@ -264,6 +264,7 @@ cc_library(
         "@abseil-cpp//absl/strings:str_format",
         "@abseil-cpp//absl/time",
         "@mboworks_mbo//mbo/diff:diff_cc",
+        "@mboworks_mbo//mbo/file:artefact_cc",
         "@nlohmann_json//:json",
         "@xff_extras_api//:archive_backend_cc",
         "@xff_extras_api//:member_path_cc",

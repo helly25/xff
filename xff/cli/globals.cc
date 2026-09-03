@@ -196,6 +196,10 @@ constexpr std::array kDiffFormatValues = std::to_array<ValueDoc>({
     {.value = "normal", .meaning = "", .hidden = true},
     {.value = "side-by-side", .meaning = "", .hidden = true},
 });
+constexpr std::array kCompareValues = std::to_array<ValueDoc>({
+    {.value = "status", .meaning = "one tab-separated selected result kind and relative path per record"},
+    {.value = "diff", .meaning = "a unified tree diff suitable for saving as a patch"},
+});
 constexpr std::array kDiffAlgorithmValues = std::to_array<ValueDoc>({
     {.value = "myers", .meaning = "minimal diff, as git computes it (the default)"},
     {.value = "direct", .meaning = "line-by-line, no alignment search"},
@@ -844,13 +848,45 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .summary = "columns for tabular --format, from the {field} vocabulary (e.g. path,size,mtime)",
     },
     {
+        .name = "--compare",
+        .display = "--compare[=status|diff]",
+        .group = "output",
+        .header = "Output",
+        .summary = "compare two trees as selected statuses or unified diff, with per-tree .gitignore rules",
+        .details = "Requires exactly two directory roots and no expression. Bare `--compare` and "
+                   "`--compare=status` emit only discrepancies as tab-separated `left-only`, `right-only`, or "
+                   "`different` records. `--compare=diff` emits one unified tree diff, suitable for redirecting to "
+                   "a patch file; `--diff-context` and `--diff-algorithm` tune it. Unlike `-diff TARGET`, which is "
+                   "an expression action comparing each match from one walk with a templated target and therefore "
+                   "cannot discover target-only paths, `--compare` inventories both roots symmetrically. Regular "
+                   "files are compared byte for byte (text and binary); symlinks are compared by target. Each "
+                   "root's `.gitignore` stack is applied independently and VCS metadata is skipped. `--no-ignore` "
+                   "disables ignore processing.",
+        .values = kCompareValues,
+        .topic = "content",
+        .value_check = GlobalFlag::ValueCheck::kEnum,
+    },
+    {
+        .name = "--compare-select",
+        .display = "--compare-select=KIND,...",
+        .group = "output",
+        .header = "Output",
+        .summary = "tree-comparison results to emit: left-only, right-only, identical, different, or all",
+        .details = "Selects comma-separated result kinds for `--compare`. The default is "
+                   "`left-only,right-only,different`, so equal files stay silent. `all` selects every kind. "
+                   "`identical` is available with status output and is rejected with `--compare=diff`, where an "
+                   "unchanged file has no patch representation.",
+        .affects = "--compare",
+        .topic = "content",
+    },
+    {
         .name = "--diff-algorithm",
         .display = "--diff-algorithm=naive|direct|myers",
         .group = "output",
         .header = "Output",
-        .summary = "diff engine for -diff: naive, direct, or myers (the default, minimal like git)",
+        .summary = "diff engine for -diff and tree diffs: naive, direct, or myers (the default)",
         .values = kDiffAlgorithmValues,
-        .affects = "-diff",
+        .affects = "-diff,--compare",
         .value_check = GlobalFlag::ValueCheck::kEnum,
     },
     {
@@ -892,7 +928,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "default -diff context lines (3); overrides --context for -diff, and -diff:uN overrides it",
-        .affects = "-diff",
+        .affects = "-diff,--compare",
     },
     {
         .name = "--hash-algorithm",

@@ -76,7 +76,14 @@ fi
 # only the target-configuration one: clang-tidy works per entry, so the exec copy
 # is duplicate linting for a near-identical result. Files compiled ONLY in the
 # exec configuration keep their command, so nothing leaves the compile DB.
-declare -a BCCE_ARGS=("--bcce-prefer-target-config")
+declare -a BCCE_ARGS=(
+  "--bcce-prefer-target-config"
+  # External actions cannot include workspace headers. Avoid synthetically
+  # preprocessing every third-party source merely to rediscover its external
+  # headers: configured projects such as XZ intentionally reject that mode.
+  # Their source commands remain in the database and are still lintable.
+  "--bcce-exclude-headers=external"
+)
 
 # Name the hermetic clang BINARY (not the toolchain's `cc_wrapper.sh`, which is
 # what the extracted command line starts with). clang-tidy runs its own clang to

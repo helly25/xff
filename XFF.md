@@ -6,7 +6,7 @@ eXtended File Find, a find(1)-compatible file finder with modern extensions.
 
 ## Description
 
-xff walks each starting path and acts on the entries matching an expression, like `find`(1). With no path it searches the current directory; with no action it prints each match.
+xff walks each starting path and acts on the entries matching an expression, like `find`(1). With no path it searches the current directory; with no action it prints each match. `xff --compare LEFT RIGHT` instead compares two directory trees as selected status records or a patch.
 
 xff has two flavors selected by the program name: invoked as `find` it is strict find (only the standard vocabulary); invoked as `xff` it enables the modern extensions. An explicit `--config=find|xff` overrides the program name. Items marked as xff extensions below are the additions over find.
 
@@ -214,14 +214,25 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
 - `--no-header` - omit the header row from tabular --format (csv/tsv/aligned/markdown; on by default) _(global, xff)_
 - `--columns=FIELD,...` - columns for tabular --format, from the {field} vocabulary (e.g. path,size,mtime) _(global, xff)_
-- `--diff-algorithm=naive|direct|myers` - diff engine for -diff: naive, direct, or myers (the default, minimal like git) _(global, xff)_
+- `--compare[=status|diff]` - compare two trees as selected statuses or unified diff, with per-tree .gitignore rules _(global, xff)_
+  One of:
+
+  - `status` - one tab-separated selected result kind and relative path per record
+  - `diff` - a unified tree diff suitable for saving as a patch
+
+  Requires exactly two directory roots and no expression. Bare `--compare` and `--compare=status` emit only discrepancies as tab-separated `left-only`, `right-only`, or `different` records. `--compare=diff` emits one unified tree diff, suitable for redirecting to a patch file; `--diff-context` and `--diff-algorithm` tune it. Unlike `-diff TARGET`, which is an expression action comparing each match from one walk with a templated target and therefore cannot discover target-only paths, `--compare` inventories both roots symmetrically. Regular files are compared byte for byte (text and binary); symlinks are compared by target. Each root's `.gitignore` stack is applied independently and VCS metadata is skipped. `--no-ignore` disables ignore processing.
+  Affected by: --compare-select, --diff-algorithm, --diff-context
+- `--compare-select=KIND,...` - tree-comparison results to emit: left-only, right-only, identical, different, or all _(global, xff)_
+  Selects comma-separated result kinds for `--compare`. The default is `left-only,right-only,different`, so equal files stay silent. `all` selects every kind. `identical` is available with status output and is rejected with `--compare=diff`, where an unchanged file has no patch representation.
+  Affects: --compare
+- `--diff-algorithm=naive|direct|myers` - diff engine for -diff and tree diffs: naive, direct, or myers (the default) _(global, xff)_
   One of:
 
   - `myers` - minimal diff, as git computes it (the default)
   - `direct` - line-by-line, no alignment search
   - `naive` - the simple longest-common-subsequence walk
 
-  Affects: -diff
+  Affects: -diff, --compare
 - `--diff-ignore=TOKEN,...` - normalize -diff comparison: ws, change, trail, blank, case, eofnl (comma-separated) _(global, xff)_
   Sets the normalization used by `-diff`; the last value wins. It may be saved in user config or an explicit `--xffrc=FILE`, and a command-line value overrides the configured value. An empty value disables configured normalization. Tokens are `ws`, `change`, `trail`, `blank`, `case`, and `eofnl`, comma-separated.
   Affects: -diff
@@ -238,7 +249,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 
   Affects: -diff
 - `--diff-context=N` - default -diff context lines (3); overrides --context for -diff, and -diff:uN overrides it _(global, xff)_
-  Affects: -diff
+  Affects: -diff, --compare
   Affected by: --context
 - `--hash-algorithm=<ALGO>` - default digest for -hash / {hash} (sha256 default; md5, sha512, blake3, and more) _(global, xff)_
   ALGO is one of:
@@ -596,7 +607,7 @@ A dangerous directive (the exec family -exec/-execdir/-ok/-capture, or -delete) 
 - `-collect[:[!]NAME]` - add the entry to a named collection for --summary to reduce (xff) _(action, xff)_
   xff extension: an ACTION that adds the entry to a collection instead of printing it, and makes `--summary` reduce THAT collection rather than what matched. This is what a truncating test cannot do on its own: a FALSE test removes the entry from every sink, so `-first 10 --summary` summarises ten entries, never "all of them, showing ten". ORDER selects the reading, because these are primaries rather than position-independent globals: `-collect -first 10 -ls --summary` collects everything, lists ten, and summarises ALL of them, while `-first 10 -collect --summary` collects only the ten and summarises those. The second prints no listing because `-collect` is an action, so the implicit `-print` is suppressed - find's own rule, not a new one. `-collect:NAME` uses a second collection; a bare `-collect` uses the one named `default`. A NAME is an identifier (`[A-Za-z_][A-Za-z0-9_]*`), which is what reserves punctuation for modifiers. Two nodes MAY share a collection, but the later one must SAY so with `!`: `\( -type f -collect:all \) -o \( -type d -collect:!all \)` gathers both branches into one collection, while an unmarked repeat is a usage error - a silently shared collection shows up only as a doubled total. The modifier is per node, so it cannot loosen the other `-collect` in a long command the way a whole-run flag would. A collection holds every match until the walk ends, so `--buffer` bounds it (a row count or a byte budget); exceeding it is an ERROR rather than a silent truncation, because a summary over part of the walk is indistinguishable from a correct one. Without `--buffer` there is no cap. Presence is SYNTACTIC, like the implicit print: a `-collect` in a branch that never runs still switches the summary's source, and the summary is then empty. Example: `xff . -type f -collect -first 3 -ls --summary`.
 - `-diff[:STYLE] TARGET` - diff the file against TARGET (a field template); true when equal (xff) _(action, xff)_
-  Compares the matched file against TARGET - a {field} template evaluated per entry, so it can name a mirror path like `../b/{relpath}` - and is true when they are equal, false on a difference. The optional :STYLE picks the output: unified `u3` (default; 3 lines of context), context `c`, normal `n`, side-by-side `y`, or `none` for just the boolean. Text files only; expensive.
+  Compares the matched file against TARGET - a {field} template evaluated per entry, so it can name a mirror path like `../b/{relpath}` - and is true when they are equal, false on a difference. The optional :STYLE picks the output: unified `u3` (default; 3 lines of context), context `c`, normal `n`, side-by-side `y`, or `none` for just the boolean. This is a one-sided expression action: it visits only the search roots, so it cannot report paths that exist only under TARGET. Use `--compare[=status|diff] LEFT RIGHT` for a symmetric, ignore-aware comparison of two complete trees. Text files only; expensive.
   Affected by: --diff-algorithm, --diff-ignore, --diff-ignore-matching, --diff-format, --diff-context, --context
 - `-hash[:ALGO[/ENCODING]]` - print the file digest and path; -hash:ALGO[/ENCODING], sha256 hex default (xff) _(action, xff)_
   Prints `DIGEST  PATH` for each match (an action). `-hash:ALGO[/ENCODING]` picks the algorithm (sha256 default; also sha1/sha512/...) and encoding (hex default, or base64). Reads the whole file, so it is expensive; the same digest is available as the {hash} field.
@@ -1096,6 +1107,14 @@ xff . -type f -hash:sha256
 ```
 
 prints `DIGEST  PATH` per file (like sha256sum); redirect to a file to snapshot a tree, then diff two runs to spot changes.
+
+### Create a patch between repository trees
+
+```sh
+xff --compare=diff old-tree new-tree > changes.patch
+```
+
+walks both trees with each side's own .gitignore rules and writes one unified patch for added, removed, and changed text files, including files found only on the right - unlike a one-sided `-diff TARGET` walk. Binary differences are reported in the patch stream. Use --compare-select to restrict which result kinds contribute.
 
 ### Recently changed files as machine rows
 
