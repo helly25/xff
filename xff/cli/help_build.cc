@@ -421,6 +421,85 @@ Section StatsSection(bool in_full) {
   return section;
 }
 
+// IGNORE AND VCS: the independent filters that decide which paths enter the walk. The flags are
+// pulled from the globals SOT via the "ignore" topic tag so the list cannot drift. Standalone as
+// `--help=ignore` (aliases `ignores` / `vcs`) and folded into the full reference; the folded form
+// omits entries already present in the Options section.
+Section IgnoreSection(bool in_full) {
+  Section section{.title = "Ignore and VCS traversal"};
+  section.children.push_back(ProseOf(
+      "Ignoring a path and pruning version-control metadata are separate decisions. Ignore rules "
+      "filter ordinary paths by pattern; `--skip-vcs` prevents xff from entering administrative "
+      "trees such as `.git` or `.hg` at all. Hidden-path filtering is a third independent switch. "
+      "Changing one does not silently change the others."));
+
+  static constexpr std::array<DocPair, 6> kAxes = {{
+      {"--exclude / --include", "command-line gitignore-style patterns; repeatable, later matches win"},
+      {"--gitignore / -g", "Git's `.gitignore`, `.git/info/exclude`, and `core.excludesFile` layer"},
+      {"--ignore-files", "per-directory `.ignore` and `.xffignore` files"},
+      {"--ignore-file=PATH", "an explicitly named rule file, rooted at its own directory"},
+      {"--skip-vcs", "prune VCS metadata names; independent of pattern-based ignore files"},
+      {"--hidden / --no-hidden", "show or skip dot-prefixed path components"},
+  }};
+  Subsection axes{.title = "Independent axes"};
+  axes.children.push_back(RowsOf(kAxes));
+  section.children.push_back(Content{.node = std::move(axes)});
+
+  Subsection defaults{.title = "Defaults and overrides"};
+  defaults.children.push_back(ProseOf(
+      "The find and xff styles start with ignore files off and hidden paths visible. The rg style "
+      "honours VCS, `.ignore`, and `.xffignore` files and skips hidden paths. Tree comparison "
+      "honours each root's Git ignore sources by default because its usual input is two Git working "
+      "trees; `--no-ignore` / `-u` disables those sources."));
+  defaults.children.push_back(ProseOf(
+      "Bare `-g` / `--gitignore` is automatic: it activates only inside a Git working tree. "
+      "`-g+` / `--gitignore=on` forces the Git layer anywhere; `-g-` / `--gitignore=off` disables it. "
+      "`--ignore-vcs` and `--no-ignore-vcs` are the rg-style spellings for that same layer. Within "
+      "this family the last flag wins."));
+  defaults.children.push_back(ProseOf(
+      "When the Git ignore layer is active, xff also implicitly prunes `.git` as if "
+      "`--skip-vcs=git` were present. An explicit `--skip-vcs[=LIST]` replaces that implicit choice; "
+      "bare or `=all` selects every known VCS, while `--no-skip-vcs` / `=none` keeps metadata in the "
+      "walk. A list such as `--skip-vcs=git,hg` is frozen to exactly those systems."));
+  defaults.children.push_back(ProseOf(
+      "`--no-ignore` / `-u` is the master off switch for ignore-file sources, including explicit "
+      "`--ignore-file` inputs. It does not cancel command-line `--exclude` patterns or an explicit "
+      "`--skip-vcs`. Use `--no-skip-vcs` separately when metadata directories must remain visible."));
+  section.children.push_back(Content{.node = std::move(defaults)});
+
+  Subsection precedence{.title = "Pattern precedence"};
+  precedence.children.push_back(ProseOf(
+      "For a path, command-line `--exclude` / `--include` patterns decide first, then explicit "
+      "`--ignore-file` sources, then per-directory files. Within a source, gitignore last-match-wins "
+      "semantics apply; a matched directory is pruned, so a later rule cannot recover descendants "
+      "that were never visited."));
+  section.children.push_back(Content{.node = std::move(precedence)});
+
+  if (!in_full) {
+    Subsection flags{.title = "Ignore and traversal flags"};
+    for (const GlobalFlag& flag : Globals()) {
+      if (flag.topic == "ignore") {
+        flags.children.push_back(FlagEntry(flag));
+      }
+    }
+    section.children.push_back(Content{.node = std::move(flags)});
+  }
+
+  static constexpr std::array<DocPair, 4> kExamples = {{
+      {"xff -g . -name '*.cc'", "honour Git rules automatically and search the remaining tree"},
+      {"xff --skip-vcs=git,hg .", "prune only Git and Mercurial metadata, without enabling ignore files"},
+      {"xff -g --no-skip-vcs .", "honour Git rules while allowing nested `.git` metadata into the walk"},
+      {"xff -u --skip-vcs .", "ignore no rule files, but still prune every known VCS metadata tree"},
+  }};
+  Subsection examples{.title = "Examples"};
+  for (const auto& [command, explanation] : kExamples) {
+    examples.children.push_back(ExampleOf(std::string(command), "sh"));
+    examples.children.push_back(ProseOf(explanation));
+  }
+  section.children.push_back(Content{.node = std::move(examples)});
+  return section;
+}
+
 // ARCHIVES: what it means to walk INTO a container, and the whole `--archive` family. The flags are
 // pulled from the globals SOT via the "archive" topic tag so the list cannot drift; the identity /
 // read-only / cost rules are prose, because they are what a reader needs before the flags mean
@@ -980,6 +1059,10 @@ Section GuideSection() {
   return help;
 }
 
+bool IsIgnoreTopicName(std::string_view name) {
+  return name == "ignore" || name == "ignores" || name == "vcs";
+}
+
 }  // namespace
 
 std::vector<std::string_view> LicenseComponentNames() {
@@ -1052,6 +1135,8 @@ std::optional<Document> TopicReference(std::string_view name) {
     doc.sections.push_back(GrammarsSection());
   } else if (name == "content") {
     doc.sections.push_back(ContentSection(/*in_full=*/false));
+  } else if (IsIgnoreTopicName(name)) {
+    doc.sections.push_back(IgnoreSection(/*in_full=*/false));
   } else if (name == "archive" || name == "archives") {
     doc.sections.push_back(ArchiveSection(/*in_full=*/false));
   } else if (name == "stats") {
@@ -1119,6 +1204,7 @@ Document BuildReference(Audience audience) {
   doc.sections.push_back(SizeSection());
   doc.sections.push_back(GrammarsSection());
   doc.sections.push_back(ContentSection(/*in_full=*/true));
+  doc.sections.push_back(IgnoreSection(/*in_full=*/true));
   doc.sections.push_back(ArchiveSection(/*in_full=*/true));
   doc.sections.push_back(StatsSection(/*in_full=*/true));
   doc.sections.push_back(EnvironmentSection());
