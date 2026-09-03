@@ -873,6 +873,59 @@ xff -z logs.tar -grep ERROR --count
 
 per-member match counts inside an archive
 
+## Ignore and VCS traversal
+
+Ignoring a path and pruning version-control metadata are separate decisions. Ignore rules filter ordinary paths by pattern; `--skip-vcs` prevents xff from entering administrative trees such as `.git` or `.hg` at all. Hidden-path filtering is a third independent switch. Changing one does not silently change the others.
+
+### Independent axes
+
+- `--exclude / --include` - command-line gitignore-style patterns; repeatable, later matches win
+- `--gitignore / -g` - Git's `.gitignore`, `.git/info/exclude`, and `core.excludesFile` layer
+- `--ignore-files` - per-directory `.ignore` and `.xffignore` files
+- `--ignore-file=PATH` - an explicitly named rule file, rooted at its own directory
+- `--skip-vcs` - prune VCS metadata names; independent of pattern-based ignore files
+- `--hidden / --no-hidden` - show or skip dot-prefixed path components
+
+### Defaults and overrides
+
+The find and xff styles start with ignore files off and hidden paths visible. The rg style honours VCS, `.ignore`, and `.xffignore` files and skips hidden paths. Tree comparison honours each root's Git ignore sources by default because its usual input is two Git working trees; `--no-ignore` / `-u` disables those sources.
+
+Bare `-g` / `--gitignore` is automatic: it activates only inside a Git working tree. `-g+` / `--gitignore=on` forces the Git layer anywhere; `-g-` / `--gitignore=off` disables it. `--ignore-vcs` and `--no-ignore-vcs` are the rg-style spellings for that same layer. Within this family the last flag wins.
+
+When the Git ignore layer is active, xff also implicitly prunes `.git` as if `--skip-vcs=git` were present. An explicit `--skip-vcs[=LIST]` replaces that implicit choice; bare or `=all` selects every known VCS, while `--no-skip-vcs` / `=none` keeps metadata in the walk. A list such as `--skip-vcs=git,hg` is frozen to exactly those systems.
+
+`--no-ignore` / `-u` is the master off switch for ignore-file sources, including explicit `--ignore-file` inputs. It does not cancel command-line `--exclude` patterns or an explicit `--skip-vcs`. Use `--no-skip-vcs` separately when metadata directories must remain visible.
+
+### Pattern precedence
+
+For a path, command-line `--exclude` / `--include` patterns decide first, then explicit `--ignore-file` sources, then per-directory files. Within a source, gitignore last-match-wins semantics apply; a matched directory is pruned, so a later rule cannot recover descendants that were never visited.
+
+### Examples
+
+```sh
+xff -g . -name '*.cc'
+```
+
+honour Git rules automatically and search the remaining tree
+
+```sh
+xff --skip-vcs=git,hg .
+```
+
+prune only Git and Mercurial metadata, without enabling ignore files
+
+```sh
+xff -g --no-skip-vcs .
+```
+
+honour Git rules while allowing nested `.git` metadata into the walk
+
+```sh
+xff -u --skip-vcs .
+```
+
+ignore no rule files, but still prune every known VCS metadata tree
+
 ## Archives
 
 With `--archive`, an archive is a directory: xff opens it and walks its members as ordinary entries, so every predicate and action applies to them unchanged - `-name`, `-type`, `-grep`, `{hash}`, `--summary`. Nothing in the expression vocabulary knows about archives. Needs at least one container-reader extra; `--help=extras` says which readers this binary has.

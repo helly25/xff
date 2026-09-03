@@ -122,6 +122,7 @@ absl::Span<const HelpTopic> HelpTopics() {
   static constexpr auto kListAliases = std::to_array<std::string_view>({"topic", "topics"});
   static constexpr auto kGrammarAliases = std::to_array<std::string_view>({"regex", "regexp"});
   static constexpr auto kEnvironmentAliases = std::to_array<std::string_view>({"env"});
+  static constexpr auto kIgnoreAliases = std::to_array<std::string_view>({"ignores", "vcs"});
   static constexpr auto kStyleAliases = std::to_array<std::string_view>({"flavors"});
   static constexpr auto kArchiveAliases = std::to_array<std::string_view>({"archives"});
   static constexpr auto kCookbookAliases = std::to_array<std::string_view>({"examples", "recipes"});
@@ -144,6 +145,10 @@ absl::Span<const HelpTopic> HelpTopics() {
       {.name = "content",
        .aliases = {},
        .summary = "reading inside files: -grep, -content, -rxc, -text, and their fields",
+       .in_full = true},
+      {.name = "ignore",
+       .aliases = kIgnoreAliases,
+       .summary = "ignore sources, VCS metadata pruning, hidden paths, and precedence",
        .in_full = true},
       {.name = "config", .aliases = {}, .summary = "config tiers, style selection (--config / argv[0]), and arming"},
       {.name = "environment",

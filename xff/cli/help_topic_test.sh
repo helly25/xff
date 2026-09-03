@@ -223,6 +223,22 @@ test::help_stats_documents_the_reductions() {
   expect_output_contains 'needs an aggregator' "${out}" # the no-bare-metric rule
 }
 
+test::help_ignore_explains_the_independent_vcs_axes() {
+  local out rc
+  out="$("$(_xff_bin)" --help=ignore 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_output_contains "Independent axes" "${out}"
+  expect_output_contains "Pattern precedence" "${out}"
+  expect_output_contains "--gitignore" "${out}"
+  expect_output_contains "--ignore-vcs" "${out}"
+  expect_output_contains "--skip-vcs" "${out}"
+  expect_output_contains "--no-skip-vcs" "${out}"
+  expect_output_contains "implicitly prunes" "${out}"
+  expect_output_contains "does not cancel command-line" "${out}"
+  out="$("$(_xff_bin)" --help=vcs 2>&1)"
+  expect_output_contains "IGNORE AND VCS TRAVERSAL" "${out}"
+}
+
 test::help_archive_documents_diving_and_what_is_writable() {
   # `--help=archive` gathers the whole --archive family: the flags come from the SOT via the
   # "archive" topic tag, and the prose carries what the flags alone cannot say - that a member is an

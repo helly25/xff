@@ -664,6 +664,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "skip paths matching a gitignore-style glob (repeatable; a matched directory is pruned)",
+        .topic = "ignore",
     },
     {
         .name = "--include",
@@ -671,6 +672,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "re-include paths a --exclude would skip, matching a gitignore-style glob (repeatable)",
+        .topic = "ignore",
     },
     {
         .name = "--lang-db",
@@ -739,6 +741,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "it anywhere; `-g-` / `=off` disables it. Independent of `--ignore-files` (.ignore / "
                    ".xffignore).",
         .values = kGitignoreValues,
+        .topic = "ignore",
         .sign_forms = kGitignoreShorts,
         .value_check = GlobalFlag::ValueCheck::kTristate,
     },
@@ -748,6 +751,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "respect per-directory .ignore and .xffignore files (off by default)",
+        .topic = "ignore",
     },
     {
         .name = "--ignore-file",
@@ -755,6 +759,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "read an extra gitignore-format file, rooted at its own directory (repeatable)",
+        .topic = "ignore",
     },
     {
         .name = "--no-ignore",
@@ -763,6 +768,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "disable all ignore-file processing (.gitignore/.ignore/.xffignore)",
+        .topic = "ignore",
     },
     {
         .name = "--ignore-vcs",
@@ -775,6 +781,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "countermand an earlier --no-ignore-vcs or a style default. Independent of --ignore-files "
                    "(.ignore / .xffignore), which keep their own switch; --no-ignore / -u still turns off every "
                    "ignore source. Last of the ignore-mode flags wins.",
+        .topic = "ignore",
     },
     {
         .name = "--no-ignore-vcs",
@@ -786,6 +793,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "leaving --ignore-files (.ignore / .xffignore) untouched - that is the difference from "
                    "--no-ignore / -u, which turns off every ignore source. Today git is the only VCS ignore file xff "
                    "reads, so this is nearly --gitignore=off. Last of the ignore-mode flags wins.",
+        .topic = "ignore",
     },
     {
         .name = "--hidden",
@@ -793,6 +801,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "include hidden dotfiles in the walk (default: find/xff show, rg skips)",
+        .topic = "ignore",
     },
     {
         .name = "--no-hidden",
@@ -800,6 +809,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "skip hidden dotfiles (the rg default; opts find/xff out)",
+        .topic = "ignore",
     },
     {
         .name = "--skip-vcs",
@@ -816,6 +826,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "mode implies `--skip-vcs=git` (only .git); an explicit `--skip-vcs` overrides that. Default "
                    "off otherwise.",
         .values = kSkipVcsValues,
+        .topic = "ignore",
     },
     {
         .name = "--no-skip-vcs",
@@ -823,6 +834,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "filter",
         .header = "Filter & Ignore",
         .summary = "keep VCS metadata dirs in the walk (opts out of --skip-vcs and the -g .git default)",
+        .topic = "ignore",
     },
     {
         .name = "--format",
