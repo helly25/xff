@@ -1,7 +1,9 @@
 # Release: on a version tag push (e.g. `git tag v0.1.0 && git push origin v0.1.0`,
 # or `tools/trigger_release.sh 0.1.0`), build the lean and full binaries for Linux
 # and macOS and cut a GitHub release with them attached and the CHANGELOG section
-# as the body.
+# as the body. The input-free manual dispatch is the one-time v0.3.0 recovery:
+# GitHub reads the corrected workflow from main, while every job explicitly
+# checks out and builds the immutable tagged source.
 #
 # xff is not published to a registry; it ships as a tool. The version is stamped
 # from the tag at build time (override-on-release, see tools/release_prep.sh),
@@ -20,18 +22,38 @@ on:
       # v-prefixed numeric semver only (e.g. v0.1.0). The `v` gives a clean `v*`
       # tag-protection glob; release_prep.sh strips it to the bare stamped version.
       - "v[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch: {}
 
 permissions: read-all
 
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && 'v0.3.0' || github.ref_name }}
+
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && 'v0.3.0' || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  coverage:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+      - name: Validate release tag
+        run: |
+          set -euo pipefail
+          [[ "${RELEASE_TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git rev-parse --verify --quiet "refs/tags/${RELEASE_TAG}" >/dev/null
+          [[ "$(git rev-parse HEAD)" == "$(git rev-list -n 1 "${RELEASE_TAG}")" ]]
+
+  coverage:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel coverage disk cache
         uses: actions/cache@v6
@@ -68,15 +90,16 @@ jobs:
         # the integration test must fail rather than skip if mounting stops working.
         run: |
           set -euo pipefail
-          tools/release_prep.sh "${GITHUB_REF_NAME}" >/dev/null
-          coverage_page="tag/${GITHUB_REF_NAME#v}"
+          tools/release_prep.sh "${RELEASE_TAG}" >/dev/null
+          coverage_page="tag/${RELEASE_TAG#v}"
+          instrumentation_filter="$(tools/extras.py --instrumentation-filter)"
           # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
           bazel coverage //... $(tools/extras.py --wildcards) \
             --config=xff_docs \
             --config=xff_fuse_tests_required \
             --combined_report=lcov \
             --disk_cache=$HOME/.cache/bazel-disk \
-            --instrumentation_filter='//xff[/:],//xff_extras_api[/:],@@xff_(archive|fuse|pcre2)[+]//' \
+            --instrumentation_filter="${instrumentation_filter}" \
             --repository_cache=$HOME/.cache/bazel-repo
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
           printf '%s\n' "${coverage_page}" >coverage-target.txt
@@ -96,7 +119,7 @@ jobs:
             --output-directory coverage-html/lcov \
             --prefix "${PWD}/coverage-source-tree" \
             --show-details \
-            --title "xff ${GITHUB_REF_NAME} production coverage"
+            --title "xff ${RELEASE_TAG} production coverage"
           python3 tools/coverage_html.py coverage-html/lcov coverage_policy.json "${coverage_page}"
           python3 -m unittest tools/coverage_test.py tools/coverage_sources_test.py \
             tools/coverage_html_test.py tools/coverage_index_test.py tools/coverage_lcovrc_test.py \
@@ -130,6 +153,7 @@ jobs:
           if-no-files-found: error
 
   build:
+    needs: validate
     name: build ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -143,6 +167,8 @@ jobs:
             platform: macos
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       # bazelisk launches the Bazel release pinned in .bazelversion.
       - uses: bazelbuild/setup-bazelisk@v3
       - name: Mount Bazel caches
@@ -158,7 +184,7 @@ jobs:
       # Stamp the tag version into MODULE.bazel + main.cc and verify consistency
       # (discard the notes it prints; the release job re-derives them).
       - name: Stamp version + verify
-        run: tools/release_prep.sh "${GITHUB_REF_NAME}" >/dev/null
+        run: tools/release_prep.sh "${RELEASE_TAG}" >/dev/null
       - name: Build lean + full binaries
         run: |
           bazel build -c opt //xff/cli:xff \
@@ -189,6 +215,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: actions/download-artifact@v8
         with:
           pattern: xff-*
@@ -197,13 +225,13 @@ jobs:
       # release_prep.sh prints only the CHANGELOG section to stdout (the stamp it
       # also does here is a harmless no-op; nothing is built in this job).
       - name: Generate release notes
-        run: tools/release_prep.sh "${GITHUB_REF_NAME}" > release-notes.md
+        run: tools/release_prep.sh "${RELEASE_TAG}" > release-notes.md
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: >
-          gh release create "${GITHUB_REF_NAME}"
-          --title "${GITHUB_REF_NAME}"
+          gh release create "${RELEASE_TAG}"
+          --title "${RELEASE_TAG}"
           --notes-file release-notes.md
           --verify-tag
           dist/*
