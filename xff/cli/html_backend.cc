@@ -303,7 +303,7 @@ void HtmlBackend::EmitRows(const Rows& rows) {
 
 void HtmlBackend::EmitTable(const Table& table) {
   absl::StrAppend(
-      &out_, "<div class=\"table-wrap\" role=\"region\" tabindex=\"0\" aria-label=\"Table: ",
+      &out_, R"(<div class="table-wrap" role="region" tabindex="0" aria-label="Table: )",
       HtmlAttributeEscape(absl::StrJoin(table.header, ", ")), "\">\n<table>\n<thead><tr>");
   for (const std::string& cell : table.header) {
     absl::StrAppend(&out_, "<th scope=\"col\">", RenderTextHtml(cell), "</th>");
