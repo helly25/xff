@@ -185,6 +185,7 @@ absl::Span<const HelpFlag> HelpFlags() {
       {.display = "--man",
        .summary = "print the man page: formatted on a terminal (see --pager), else raw roff, and exit"},
       {.display = "--markdown", .summary = "print a Markdown reference of all options and primaries and exit"},
+      {.display = "--html", .summary = "print a standalone HTML reference of all options and primaries and exit"},
       {.display = "--version, -version", .summary = "print the version and exit"},
   });
   return kFlags;

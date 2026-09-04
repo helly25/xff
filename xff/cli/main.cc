@@ -37,6 +37,7 @@
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_build.h"
 #include "xff/cli/help_width.h"
+#include "xff/cli/html.h"
 #include "xff/cli/manpage.h"
 #include "xff/cli/markdown.h"
 #include "xff/cli/pager.h"
@@ -242,7 +243,7 @@ std::string RenderExtras() {
 //
 // Deliberately NOT on: the usage page (which already explains all of this and lists the topics),
 // `--help=help` itself, the `list` / `all` / `full` aggregates (they ARE the map), and never in
-// `--man` / `--markdown`, where a tip would be embedded in a document people install or publish.
+// `--man` / `--markdown` / `--html`, where a tip would be embedded in a document people install or publish.
 // A trailer on every surface is a trailer nobody reads.
 std::string HelpTip(const xff::cli::HelpRenderContext& context) {
   static constexpr std::string_view kTip =
@@ -283,7 +284,7 @@ absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRe
 // option and primary with explanations, then each sub-vocabulary topic marked in_full --
 // so adding a topic auto-includes it here, no hand-maintained list.
 std::string FullReference(xff::cli::HelpRenderContext context) {
-  // The complete reference is the whole help model (the same Document --man / --markdown
+  // The complete reference is the whole help model (the same Document --man / --markdown / --html
   // render), in plain text and wrapped to the context width.
   xff::cli::PlainTextBackend backend(context);
   xff::cli::RenderDocument(xff::cli::BuildReference(), backend);
@@ -417,7 +418,7 @@ int RunMain(int argc, char** argv) {
   // `xff --help=archive --bogus` is a broken command line, and the
   // one-line unknown-option error serves better than pages of help hiding the typo.
   // The parser has already separated these tokens from the command proper.
-  enum class Meta : std::uint8_t { kNone, kUsage, kTopic, kVersion, kMan, kMarkdown };
+  enum class Meta : std::uint8_t { kNone, kUsage, kTopic, kVersion, kMan, kMarkdown, kHtml };
   Meta meta = Meta::kNone;
   std::string meta_topic;
   const auto note = [&meta, &meta_topic](Meta kind, std::string topic = {}) {
@@ -451,6 +452,8 @@ int RunMain(int argc, char** argv) {
       note(Meta::kMan);
     } else if (arg == "--markdown") {
       note(Meta::kMarkdown);
+    } else if (arg == "--html") {
+      note(Meta::kHtml);
     }
   }
 
@@ -508,6 +511,10 @@ int RunMain(int argc, char** argv) {
         // GitHub-renderable vocabulary reference
         xff::cli::EmitPaged(xff::cli::MarkdownReference(), meta_pager);
         return 0;
+      case Meta::kHtml:
+        // Standalone semantic HTML5 vocabulary reference.
+        xff::cli::EmitPaged(xff::cli::HtmlReference(), meta_pager);
+        return 0;
       case Meta::kNone: break;  // unreachable; keeps the switch exhaustive
     }
   }
@@ -539,7 +546,7 @@ int RunMain(int argc, char** argv) {
 
   // Reject an unknown leading global option (usually a typo) with a usage error,
   // instead of silently ignoring it. Meta flags (--help / --version / --man /
-  // --markdown) are already handled above, so they never reach here.
+  // --markdown / --html) are already handled above, so they never reach here.
   for (const std::string& global : command.globals) {
     if (!xff::cli::IsKnownGlobal(global)) {
       std::cerr << "xff: unknown option '" << global << "'\n"

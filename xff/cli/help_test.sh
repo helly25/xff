@@ -99,4 +99,13 @@ test::markdown_prints_reference_and_exits_zero() {
   expect_matches "(^|${NL})## Options" "${out}"
 }
 
+test::html_prints_standalone_reference_and_exits_zero() {
+  local out rc
+  out="$("$(_xff_bin)" --html 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_matches "(^|${NL})<!doctype html>" "${out}"
+  expect_matches '<section id="options">' "${out}"
+  expect_matches "</html>($|${NL})" "${out}"
+}
+
 test_runner

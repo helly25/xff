@@ -3,6 +3,12 @@
 
 # 0.4.0
 
+## Help and documentation
+
+- Add `--html`, a standalone semantic HTML5 rendering of the complete generated reference with
+  responsive styling, dark-mode support, stable anchors, and no scripts or external assets. New
+  releases publish it as the browsable versioned reference while retaining the raw `XFF.md`.
+
 # 0.3.1
 
 ## Project

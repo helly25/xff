@@ -188,6 +188,7 @@ Content FlagEntry(const GlobalFlag& flag, bool with_details = true, Audience aud
           .details = std::move(details),
           .xff = flag.xff,
           .tags = FlagTags(flag),
+          .anchor = absl::StrCat("flag-", flag.name),
       }};
 }
 
@@ -212,6 +213,7 @@ Content PrimaryEntry(const registry::Descriptor& descriptor, bool with_details =
           .details = std::move(details),
           .xff = descriptor.style == registry::Style::kXff,
           .tags = PrimaryTags(descriptor),
+          .anchor = absl::StrCat("primary-", descriptor.name),
       }};
 }
 
@@ -1034,7 +1036,8 @@ Section GuideSection() {
           "xff has no subcommands; every kind of help is a flag. `--help` is this usage overview; "
           "`--help=NAME` documents one option or primary (e.g. `--help=-regex`, `--help=--sort`); "
           "`--help=TOPIC` opens one of the topics below; `--help=full` is the complete detailed reference; "
-          "`--man` emits the roff man page and `--markdown` a Markdown reference. On a terminal this help "
+          "`--man` emits the roff man page, `--markdown` a Markdown reference, and `--html` a standalone "
+          "HTML reference. On a terminal this help "
           "(and `--man`) is paged per `--pager`, and `--man` is formatted like a man page, so long output "
           "scrolls instead of scrolling off; through a pipe or redirect it stays unpaged (and `--man` stays "
           "raw roff for `mandoc` / installing). `--color` and `--width` control its coloring and wrap width; "

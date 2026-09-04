@@ -435,7 +435,7 @@ test::the_maps_and_the_documents_carry_no_pointer() {
   bin="$(_xff_bin)"
   tip="xff --help=help"
   for page in --help --help=help --help=list --help=all --help=full --help=expressions \
-    --help=notice --help=notices --help=license --help=licenses --help=license=Apache-2.0 --markdown; do
+    --help=notice --help=notices --help=license --help=licenses --help=license=Apache-2.0 --markdown --html; do
     expect_output_not_contains "${tip}" "$("${bin}" "${page}" 2>&1)"
   done
 }

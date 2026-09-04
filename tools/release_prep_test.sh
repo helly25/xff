@@ -146,6 +146,10 @@ test_happy_path_stamps_and_emits_notes() {
     *"Older release"*) fail "happy: notes leaked the older 0.9.0 section" ;;
   esac
   case "${notes}" in
+    *"https://mboworks.github.io/xff/releases/1.2.3/"*) ;;
+    *) fail "happy: notes missing the versioned HTML reference: ${notes}" ;;
+  esac
+  case "${notes}" in
     *"https://mboworks.github.io/xff/releases/1.2.3/XFF.md"*) ;;
     *) fail "happy: notes missing the versioned XFF.md link: ${notes}" ;;
   esac
