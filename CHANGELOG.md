@@ -5,9 +5,11 @@
 
 ## Help and documentation
 
-- Add `--html`, a standalone semantic HTML5 rendering of the complete generated reference with
-  responsive styling, dark-mode support, stable anchors, and no scripts or external assets. New
-  releases publish it as the browsable versioned reference while retaining the raw `XFF.md`.
+- Add `--help=full:html`, a standalone semantic HTML5 rendering of the complete generated reference
+  with responsive styling, dark-mode support, stable anchors, and no scripts or external assets.
+  `--help=full:markdown` generates the Markdown form; `long` aliases `full`, and `--man` remains the
+  conventional shortcut for `--help=full:roff`. New releases publish paired HTML and Markdown
+  references generated from the same binary.
 
 # 0.3.1
 

@@ -1341,7 +1341,7 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
                    "column width. auto uses the terminal width when stdout is a terminal (honoring $COLUMNS), "
                    "and leaves output unwrapped when it is not (a pipe or file); none (or 0) disables wrapping; "
                    "a positive integer sets a fixed width. Aligned vocabulary tables and example blocks keep "
-                   "their own layout. Does not affect the file listing, --man, or --markdown.",
+                   "their own layout. Does not affect the file listing, `--man`, or formatted full help.",
     },
     {
         .name = "--pager",
@@ -1349,8 +1349,8 @@ constexpr std::array kGlobals = std::to_array<GlobalFlag>({
         .group = "output",
         .header = "Output",
         .summary = "page output: help only, auto (all on a tty), always, never, or an explicit command",
-        .details = "Pages every pageable output: long meta output (`--help`, `--help=TOPIC`, `--man`, "
-                   "`--markdown`) and the file listing, including action rows such as `-ls`. The default `help` "
+        .details = "Pages every pageable output: long meta output (`--help`, `--help=TOPIC`, `--man`) and the "
+                   "file listing, including action rows such as `-ls`. The default `help` "
                    "pages only those meta surfaces and only on a terminal. `auto` adds every pageable listing "
                    "when stdout is a terminal; `always` also pages through a pipe; `never` (or `--no-pager`) "
                    "disables it. Automatic command selection prefers an installed `less -FRX`, then `more`, and "

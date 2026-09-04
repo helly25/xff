@@ -181,11 +181,11 @@ absl::Span<const HelpFlag> HelpFlags() {
       {.display = "-h, --help, -help", .summary = "print this usage page and exit (-help for GNU find compatibility)"},
       {.display = "--help=NAME", .summary = "full help for one option or primary (e.g. --help=-regex, --help=--sort)"},
       {.display = "--help=TOPIC", .summary = "detailed help for a topic:"},
-      {.display = "--help-full", .summary = "the full detailed reference (also --help-long); --help-all = --help=all"},
+      {.display = "--help=full[:FORMAT]",
+       .summary = "full reference as plain, markdown (md), html, or roff; also --help=long"},
+      {.display = "--help-full", .summary = "plain full reference (also --help-long); --help-all = --help=all"},
       {.display = "--man",
-       .summary = "print the man page: formatted on a terminal (see --pager), else raw roff, and exit"},
-      {.display = "--markdown", .summary = "print a Markdown reference of all options and primaries and exit"},
-      {.display = "--html", .summary = "print a standalone HTML reference of all options and primaries and exit"},
+       .summary = "conventional alias for --help=full:roff; formatted on a terminal, else raw roff"},
       {.display = "--version, -version", .summary = "print the version and exit"},
   });
   return kFlags;

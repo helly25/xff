@@ -8,7 +8,9 @@ Status: adopted 2026-08-05. Implemented in slices (see the #154 epic in
 
 The HTML backend shipped after the original plain, Markdown, and roff slices. It emits a
 self-contained HTML5 document directly from the model; Pages does not convert Markdown or run a
-client-side renderer.
+client-side renderer. Non-console renderers are formats of the full help document rather than
+standalone operations: `--help=full:markdown`, `--help=full:html`, and `--help=full:roff`; `long`
+aliases `full`, and `--man` remains the conventional roff shortcut.
 
 ## Problem
 

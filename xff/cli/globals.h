@@ -137,7 +137,7 @@ mbo::types::OptionalRef<const GlobalFlag> LookupGlobal(std::string_view name);
 // alias; a valued `name=VALUE` / `alias=VALUE` form when the flag advertises a value
 // (its `display` contains '='); the `-jN` / `-jall` short jobs form; and the compat
 // aliases not in the table (`-0`, `-g+`, `-g-`). The meta flags `--help` / `--version`
-// / `--man` / `--markdown` are consumed before parsing and are not checked here.
+// / `--man` / formatted full help are consumed before parsing and are not checked here.
 bool IsKnownGlobal(std::string_view arg);
 
 // Checks the VALUE of one `name=VALUE` global against the flag's declared vocabulary, so a

@@ -103,9 +103,9 @@ TEST_F(HtmlBackendTest, RendersAStandaloneSemanticDocument) {
                       .children = {Content{
                           .node =
                               Entry{
-                                  .term = "--html",
+                                  .term = "--help=full:html",
                                   .summary = {Text("render "), Code("HTML")},
-                                  .details = {Content{.node = Example{.text = "x&f --html", .lang = "sh"}}},
+                                  .details = {Content{.node = Example{.text = "x&f --help=full:html", .lang = "sh"}}},
                                   .tags = {"global", "xff"},
                               }}},
                   }}},
@@ -123,10 +123,11 @@ TEST_F(HtmlBackendTest, RendersAStandaloneSemanticDocument) {
   EXPECT_THAT(html, HasSubstr("<section id=\"options\">\n<h2>Options</h2>"));
   EXPECT_THAT(html, HasSubstr("<section id=\"output\">\n<h3>Output</h3>"));
   EXPECT_THAT(
-      html, HasSubstr(
-                "<article class=\"entry\" id=\"html\">\n<h4><code>--html</code><span class=\"tags\">"
-                "(global, xff)</span></h4>\n<p class=\"summary\">render <code>HTML</code></p>"));
-  EXPECT_THAT(html, HasSubstr("<pre><code class=\"language-sh\">x&amp;f --html</code></pre>"));
+      html,
+      HasSubstr(
+          "<article class=\"entry\" id=\"help-full-html\">\n<h4><code>--help=full:html</code><span class=\"tags\">"
+          "(global, xff)</span></h4>\n<p class=\"summary\">render <code>HTML</code></p>"));
+  EXPECT_THAT(html, HasSubstr("<pre><code class=\"language-sh\">x&amp;f --help=full:html</code></pre>"));
   EXPECT_THAT(html, HasSubstr("</main>\n</body>\n</html>\n"));
 }
 

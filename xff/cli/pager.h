@@ -45,7 +45,7 @@ struct PagerDecision {
 };
 
 // The kind of meta output being paged, which picks the default pager. kText is the
-// already-terminal-ready surfaces (--help / --markdown / ...). kMan is --man, whose roff
+// already-terminal-ready surfaces (--help / formatted full help / ...). kMan is roff help, whose
 // SOURCE needs formatting first, so its default runs it through a roff formatter.
 enum class PagerKind { kText, kMan };
 

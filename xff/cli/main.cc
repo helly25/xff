@@ -243,7 +243,7 @@ std::string RenderExtras() {
 //
 // Deliberately NOT on: the usage page (which already explains all of this and lists the topics),
 // `--help=help` itself, the `list` / `all` / `full` aggregates (they ARE the map), and never in
-// `--man` / `--markdown` / `--html`, where a tip would be embedded in a document people install or publish.
+// `--man` / `--help=full:FORMAT`, where a tip would be embedded in a document people install or publish.
 // A trailer on every surface is a trailer nobody reads.
 std::string HelpTip(const xff::cli::HelpRenderContext& context) {
   static constexpr std::string_view kTip =
@@ -280,11 +280,80 @@ bool TopicTakesTip(std::string_view topic) {
 // (wrap width, ...) every model-rendered topic applies.
 absl::StatusOr<std::string> RenderTopic(std::string_view topic, xff::cli::HelpRenderContext context);
 
+enum class Meta : std::uint8_t { kNone, kUsage, kTopic, kVersion, kMan, kMarkdown, kHtml, kInvalid };
+
+struct MetaSelection {
+  Meta kind = Meta::kNone;
+  std::string topic;
+};
+
+std::string NormalizeHelpTopic(std::string_view topic) {
+  const std::size_t value = topic.find('=');
+  return value == std::string_view::npos
+             ? absl::AsciiStrToLower(topic)
+             : absl::StrCat(absl::AsciiStrToLower(topic.substr(0, value)), topic.substr(value));
+}
+
+MetaSelection ParseHelpSelector(std::string_view selector) {
+  const std::size_t separator = selector.rfind(':');
+  if (separator == std::string_view::npos) {
+    return {.kind = Meta::kTopic, .topic = NormalizeHelpTopic(selector)};
+  }
+  const std::string_view topic = selector.substr(0, separator);
+  const std::string format = absl::AsciiStrToLower(selector.substr(separator + 1));
+  const std::string normalized_topic = absl::AsciiStrToLower(topic);
+  if (normalized_topic != "full" && normalized_topic != "long") {
+    return {
+        .kind = Meta::kInvalid,
+        .topic = absl::StrCat("formatted help is supported only for 'full' or 'long', not '", topic, "'"),
+    };
+  }
+  if (format == "plain") {
+    return {.kind = Meta::kTopic, .topic = normalized_topic};
+  }
+  if (format == "markdown" || format == "md") {
+    return {.kind = Meta::kMarkdown};
+  }
+  if (format == "html") {
+    return {.kind = Meta::kHtml};
+  }
+  if (format == "roff") {
+    return {.kind = Meta::kMan};
+  }
+  return {
+      .kind = Meta::kInvalid,
+      .topic = absl::StrCat("unknown help format '", format, "'; use plain, markdown, html, or roff"),
+  };
+}
+
+MetaSelection SelectMeta(const std::vector<std::string>& flags) {
+  if (flags.empty()) {
+    return {};
+  }
+  const std::string& arg = flags.front();  // first meta wins, matching the historical behavior
+  if (arg == "--help" || arg == "-help" || arg == "-h") {
+    return {.kind = Meta::kUsage};
+  }
+  if (arg == "--help-all") {
+    return {.kind = Meta::kTopic, .topic = "all"};
+  }
+  if (arg == "--help-full" || arg == "--help-long") {
+    return {.kind = Meta::kTopic, .topic = "full"};
+  }
+  if (arg.starts_with("--help=")) {
+    return ParseHelpSelector(std::string_view(arg).substr(7));
+  }
+  if (arg == "--version" || arg == "-version") {
+    return {.kind = Meta::kVersion};
+  }
+  return {.kind = Meta::kMan};  // --man is the only remaining parser-classified meta flag
+}
+
 // The full detailed reference (--help=full / long and --help-full / --help-long): every
 // option and primary with explanations, then each sub-vocabulary topic marked in_full --
 // so adding a topic auto-includes it here, no hand-maintained list.
 std::string FullReference(xff::cli::HelpRenderContext context) {
-  // The complete reference is the whole help model (the same Document --man / --markdown / --html
+  // The complete reference is the whole help model (the same Document --man / --help=full:FORMAT
   // render), in plain text and wrapped to the context width.
   xff::cli::PlainTextBackend backend(context);
   xff::cli::RenderDocument(xff::cli::BuildReference(), backend);
@@ -418,46 +487,9 @@ int RunMain(int argc, char** argv) {
   // `xff --help=archive --bogus` is a broken command line, and the
   // one-line unknown-option error serves better than pages of help hiding the typo.
   // The parser has already separated these tokens from the command proper.
-  enum class Meta : std::uint8_t { kNone, kUsage, kTopic, kVersion, kMan, kMarkdown, kHtml };
-  Meta meta = Meta::kNone;
-  std::string meta_topic;
-  const auto note = [&meta, &meta_topic](Meta kind, std::string topic = {}) {
-    if (meta == Meta::kNone) {  // the first meta wins, like the old first-return
-      meta = kind;
-      meta_topic = std::move(topic);
-    }
-  };
-  for (const std::string& arg : parsed->meta_flags) {
-    if (arg == "--help" || arg == "-help" || arg == "-h") {
-      note(Meta::kUsage);
-    } else if (arg == "--help-all") {
-      note(Meta::kTopic, "all");  // hyphenated shortcut for --help=all (summaries)
-    } else if (arg == "--help-full" || arg == "--help-long") {
-      note(Meta::kTopic, "full");  // hyphenated shortcut for --help=full (explained)
-    } else if (arg.starts_with("--help=")) {
-      // Folded once here, so every consumer (the renderer, the tip gate, the error) agrees on the
-      // spelling: --help=LIST and --help=Topics are the same ask as --help=list. Only the TOPIC
-      // name folds: a topic's value is data, and `--help=license=RE2` names a component whose
-      // spelling is a proper noun, so lowercasing it would make it unfindable and would echo a
-      // name back at the reader that they never typed.
-      const std::string_view topic(std::string_view(arg).substr(7));
-      const std::size_t value = topic.find('=');
-      note(
-          Meta::kTopic, value == std::string_view::npos
-                            ? absl::AsciiStrToLower(topic)
-                            : absl::StrCat(absl::AsciiStrToLower(topic.substr(0, value)), topic.substr(value)));
-    } else if (arg == "--version" || arg == "-version") {
-      note(Meta::kVersion);
-    } else if (arg == "--man") {
-      note(Meta::kMan);
-    } else if (arg == "--markdown") {
-      note(Meta::kMarkdown);
-    } else if (arg == "--html") {
-      note(Meta::kHtml);
-    }
-  }
+  const MetaSelection meta = SelectMeta(parsed->meta_flags);
 
-  if (meta != Meta::kNone) {
+  if (meta.kind != Meta::kNone) {
     // Bad flags are hard errors even when help was asked for. Ignoring them because
     // help "wins" is how a typo silently vanishes behind 200 lines of output.
     for (const std::string& global : parsed->globals) {
@@ -473,7 +505,7 @@ int RunMain(int argc, char** argv) {
         return 2;
       }
     }
-    switch (meta) {
+    switch (meta.kind) {
       case Meta::kUsage: {
         xff::cli::PlainTextBackend backend(help_context);
         xff::cli::RenderDocument(xff::cli::BuildUsage(), backend);
@@ -481,9 +513,9 @@ int RunMain(int argc, char** argv) {
         return 0;
       }
       case Meta::kTopic: {
-        const absl::StatusOr<std::string> help = RenderTopic(meta_topic, help_context);
+        const absl::StatusOr<std::string> help = RenderTopic(meta.topic, help_context);
         if (help.ok()) {
-          const std::string tip = TopicTakesTip(meta_topic) ? HelpTip(help_context) : std::string();
+          const std::string tip = TopicTakesTip(meta.topic) ? HelpTip(help_context) : std::string();
           xff::cli::EmitPaged(absl::StrCat(*help, tip), meta_pager);
           return 0;
         }
@@ -491,12 +523,12 @@ int RunMain(int argc, char** argv) {
         // `--help=license=NAME` fails the same way but for a different reason - the topic exists
         // and the COMPONENT does not - so it gets the component names, which is the list the
         // reader actually needs.
-        if (absl::StartsWith(meta_topic, "license=") || absl::StartsWith(meta_topic, "licenses=")) {
-          std::cerr << "xff: no licensed component '" << meta_topic.substr(meta_topic.find('=') + 1)
+        if (absl::StartsWith(meta.topic, "license=") || absl::StartsWith(meta.topic, "licenses=")) {
+          std::cerr << "xff: no licensed component '" << meta.topic.substr(meta.topic.find('=') + 1)
                     << "' in this binary; it has: " << absl::StrJoin(xff::cli::LicenseComponentNames(), ", ") << "\n";
           return 2;
         }
-        std::cerr << "xff: no help topic '" << meta_topic << "'; 'xff --help=topics' lists them\n";
+        std::cerr << "xff: no help topic '" << meta.topic << "'; 'xff --help=topics' lists them\n";
         return 2;
       }
       case Meta::kVersion:
@@ -515,6 +547,7 @@ int RunMain(int argc, char** argv) {
         // Standalone semantic HTML5 vocabulary reference.
         xff::cli::EmitPaged(xff::cli::HtmlReference(), meta_pager);
         return 0;
+      case Meta::kInvalid: std::cerr << "xff: " << meta.topic << "\n"; return 2;
       case Meta::kNone: break;  // unreachable; keeps the switch exhaustive
     }
   }
@@ -545,8 +578,8 @@ int RunMain(int argc, char** argv) {
   xff::parser::Command command = *std::move(parsed);
 
   // Reject an unknown leading global option (usually a typo) with a usage error,
-  // instead of silently ignoring it. Meta flags (--help / --version / --man /
-  // --markdown / --html) are already handled above, so they never reach here.
+  // instead of silently ignoring it. Meta flags (--help / --version / --man) are already handled
+  // above, so they never reach here.
   for (const std::string& global : command.globals) {
     if (!xff::cli::IsKnownGlobal(global)) {
       std::cerr << "xff: unknown option '" << global << "'\n"

@@ -167,9 +167,9 @@ See the [XFF.md](./XFF.md) cookbook for more worked examples, including native p
 The vocabulary and options are defined once inside the C++ binary (the engine registry acts as the single source of truth), ensuring that every documentation surface is automatically generated and cannot drift:
 
 - **`XFF.md`**: The full comprehensive reference in Markdown. Run `xff-md-update.sh` to regenerate it; the `//xff/cli:xff_markdown_test` target fails CI if it drifts from the binary.
-- **`xff --html`**: Renders the same complete reference as a standalone, self-contained HTML5 document with no scripts or external assets. The shared `//xff/cli:xff_reference_gen` action always generates Markdown and HTML together, and release Pages publish that exact pair so the two formats cannot silently diverge.
 - **`xff --help`**: Renders the main utility usage page. Use `xff --help=TOPIC` to review specific sub-topics (`fields`, `printf`, `time`, `size`, `grammars`, `stats`, etc.), or `xff --help=full` to dump all help sections.
-- **`xff --man`**: Renders the standard `roff` man page stream.
+- **Formatted full reference**: Append `:markdown` (or `:md`), `:html`, or `:roff` to `--help=full` (or its `long` alias). HTML is a standalone, self-contained HTML5 document with no scripts or external assets; `--man` remains the conventional alias for the roff form.
+- **Paired release docs**: The shared `//xff/cli:xff_reference_gen` action always generates Markdown and HTML together, and release Pages publish that exact pair so the formats cannot silently diverge.
 
 ---
 

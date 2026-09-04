@@ -135,8 +135,8 @@ TEST_F(ParserTest, MetaFlagsHoistOnlyAtParserBoundaries) {
   EXPECT_THAT(exec.meta_flags, ElementsAre());
   EXPECT_THAT(exec.expression->args, ElementsAre("echo", "--help", "-version", "{}"));
 
-  ASSERT_OK_AND_ASSIGN(const Command html, Parse({".", "-type", "f", "--html"}));
-  EXPECT_THAT(html.meta_flags, ElementsAre("--html"));
+  ASSERT_OK_AND_ASSIGN(const Command html, Parse({".", "-type", "f", "--help=full:html"}));
+  EXPECT_THAT(html.meta_flags, ElementsAre("--help=full:html"));
   ASSERT_THAT(html.expression, NotNull());
 }
 
