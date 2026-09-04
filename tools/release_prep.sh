@@ -26,8 +26,8 @@
 #      xff/cli/main.cc;
 #   3. runs tools/check_module_versions.py <tag>, so a location the stamp missed
 #      fails the release loudly instead of shipping a stale version;
-#   4. prints the tag's CHANGELOG.md section to stdout (used as the GitHub release
-#      body).
+#   4. prints the tag's CHANGELOG.md section and stable versioned documentation
+#      links to stdout (used as the GitHub release body).
 #
 # Usage: tools/release_prep.sh <tag>   (v-prefixed, e.g. v1.2.3; may also come
 # from GITHUB_REF_NAME). The stamped version drops the `v`.
@@ -67,9 +67,14 @@ perl -pi -e "s/xff 0\\.0\\.0/xff ${VERSION}/g" xff/cli/main.cc
 python3 tools/check_module_versions.py "${VERSION}"
 
 # 4. Emit the version's CHANGELOG section (everything under `# <version>` up to
-#    the next version heading) as the release body.
+#    the next version heading) plus the retained release resources as the release
+#    body. The Pages publisher consumes this run's coverage artifact after the
+#    release succeeds, so these URLs become live shortly after publication.
 awk -v tag="${VERSION}" '
   $0 ~ ("^# " tag "([[:space:]]|$)") { grab = 1; next }
   grab && /^# [0-9]/ { exit }
   grab { print }
 ' CHANGELOG.md
+printf '\n## Release resources\n\n'
+printf '%s\n' "- [Full reference (XFF.md)](https://mboworks.github.io/xff/releases/${VERSION}/XFF.md)"
+printf '%s\n' "- [Coverage report](https://mboworks.github.io/xff/coverage/tag/${VERSION}/)"
