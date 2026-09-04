@@ -284,6 +284,7 @@ cc_library(
     deps = [
         ":help_backend_cc",
         ":help_model_cc",
+        "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/strings:str_format",
     ],
@@ -457,19 +458,18 @@ cc_test(
         ":html_backend_cc",
         ":html_cc",
         "//xff/registry:registry_cc",
+        "@abseil-cpp//absl/container:flat_hash_set",
         "@abseil-cpp//absl/strings",
         "@googletest//:gtest",
         "@googletest//:gtest_main",
     ],
 )
 
-# The committed //:XFF.md is verbatim `xff_full --markdown`; regenerate it and diff, so the checked-in
-# reference can never silently drift from the binary. `xff_markdown_gen` reruns the full binary (env
-# cleared so no stray .xffrc perturbs it), `xff_markdown_test` diffs the result against //:XFF.md and
-# prints the offending lines on a mismatch. XFF_FULL_ONLY -- `//...` runs it under --config=xff_full
-# (every CI test job), which is the same binary XFF.md is generated from. To refresh: ./xff-md-update.sh.
+# Generate Markdown and HTML together through the same release helper and all-extras binary. The
+# checked-in Markdown is diffed below; release CI publishes BOTH outputs from this exact action, so
+# its browsable HTML cannot silently come from a different binary or generation path.
 genrule(
-    name = "xff_markdown_gen",
+    name = "xff_reference_gen",
     # Under --config=msan the suppression file has to be an input here too: this action RUNS the
     # instrumented binary, and a genrule's working directory is the execroot, which is the path
     # MSAN_OPTIONS=suppressions= names (see .bazelrc).
@@ -477,10 +477,16 @@ genrule(
         "//xff:xff_msan_enabled": ["//tools:msan_suppressions"],
         "//conditions:default": [],
     }),
-    outs = ["XFF.md.actual"],
-    cmd = "XFF_CONFIG=/nonexistent $(location :xff_full) --markdown > $@",
+    outs = [
+        "XFF.html.actual",
+        "XFF.md.actual",
+    ],
+    cmd = "$(location //tools:generate_reference) $(location :xff_full) $(location XFF.md.actual) $(location XFF.html.actual)",
     target_compatible_with = XFF_FULL_ONLY,
-    tools = [":xff_full"],
+    tools = [
+        ":xff_full",
+        "//tools:generate_reference",
+    ],
 )
 
 diff_test(

@@ -37,6 +37,14 @@ TEST_F(HtmlEscapeTest, SlugMatchesReferenceAnchorSpelling) {
   EXPECT_THAT(HtmlSlug("!"), Eq("item-21"));
 }
 
+TEST_F(HtmlEscapeTest, AutolinksBareUrlsAndLeavesTrailingPunctuationOutside) {
+  EXPECT_THAT(
+      RenderTextHtml("Docs: https://example.com/a_(b). Then http://example.test?q=1&x=2!"),
+      Eq("Docs: <a href=\"https://example.com/a_(b)\">https://example.com/a_(b)</a>. Then "
+         "<a href=\"http://example.test?q=1&amp;x=2\">http://example.test?q=1&amp;x=2</a>!"));
+  EXPECT_THAT(RenderTextHtml("nothttps://example.com <unsafe>"), Eq("nothttps://example.com &lt;unsafe&gt;"));
+}
+
 struct HtmlRefLinkTest : ::testing::Test {};
 
 TEST_F(HtmlRefLinkTest, RendersUrlInternalAndManPageTargets) {
@@ -109,6 +117,9 @@ TEST_F(HtmlBackendTest, RendersAStandaloneSemanticDocument) {
   const std::string html = backend.Take();
   EXPECT_THAT(html, HasSubstr("<!doctype html>"));
   EXPECT_THAT(html, HasSubstr("<title>x&amp;f reference</title>"));
+  EXPECT_THAT(
+      html, HasSubstr("<nav class=\"contents\" aria-label=\"Reference sections\">\n<strong>On this page</strong>"));
+  EXPECT_THAT(html, HasSubstr("<li><a href=\"#options\">Options</a></li>"));
   EXPECT_THAT(html, HasSubstr("<section id=\"options\">\n<h2>Options</h2>"));
   EXPECT_THAT(html, HasSubstr("<section id=\"output\">\n<h3>Output</h3>"));
   EXPECT_THAT(
@@ -124,7 +135,8 @@ TEST_F(HtmlBackendTest, RendersListsRowsTablesAndExplicitAnchors) {
   Section& section = doc.sections.front();
   section.children.push_back(Content{.node = Bullets{.items = {{Text("one")}, {Code("two")}}}});
   section.children.push_back(Content{.node = Rows{.rows = {{.term = "%p", .description = {Text("path")}}}}});
-  section.children.push_back(Content{.node = Table{.header = {"name", "value"}, .cells = {{"a<b", "x&y"}}}});
+  section.children.push_back(
+      Content{.node = Table{.header = {"name", "value"}, .cells = {{"a<b", "See https://example.com/docs."}}}});
 
   HtmlBackend backend;
   RenderDocument(doc, backend);
@@ -132,7 +144,29 @@ TEST_F(HtmlBackendTest, RendersListsRowsTablesAndExplicitAnchors) {
   EXPECT_THAT(html, HasSubstr("<section id=\"stable-data\">"));
   EXPECT_THAT(html, HasSubstr("<ul>\n<li>one</li>\n<li><code>two</code></li>\n</ul>"));
   EXPECT_THAT(html, HasSubstr("<dt><code>%p</code></dt><dd>path</dd>"));
-  EXPECT_THAT(html, HasSubstr("<td>a&lt;b</td><td>x&amp;y</td>"));
+  EXPECT_THAT(
+      html,
+      HasSubstr(
+          "<div class=\"table-wrap\" role=\"region\" tabindex=\"0\" aria-label=\"Table: name, value\">\n<table>"));
+  EXPECT_THAT(
+      html,
+      HasSubstr("<td>a&lt;b</td><td>See <a href=\"https://example.com/docs\">https://example.com/docs</a>.</td>"));
+}
+
+TEST_F(HtmlBackendTest, NavigationUsesTheActualAnchorAfterEarlierCollisions) {
+  const Document doc{
+      .name = "xff",
+      .sections =
+          {
+              Section{.title = "First", .children = {Content{.node = Subsection{.title = "Time"}}}},
+              Section{.title = "Time"},
+          },
+  };
+  HtmlBackend backend;
+  RenderDocument(doc, backend);
+  const std::string html = backend.Take();
+  EXPECT_THAT(html, HasSubstr("<section id=\"time-1\">\n<h2>Time</h2>"));
+  EXPECT_THAT(html, HasSubstr("<li><a href=\"#time-1\">Time</a></li>"));
 }
 
 TEST_F(HtmlBackendTest, RendersFallbackTagsAndSeeAlsoNotes) {

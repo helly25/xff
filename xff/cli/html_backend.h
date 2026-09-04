@@ -7,8 +7,9 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
-#include <unordered_map>
+#include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "xff/cli/help_backend.h"
 #include "xff/cli/help_model.h"
 
@@ -37,7 +38,8 @@ class HtmlBackend final : public HelpBackend {
   std::string UniqueAnchor(std::string_view explicit_anchor, std::string_view fallback);
 
   std::string out_;
-  std::unordered_map<std::string, std::size_t> anchor_counts_;
+  absl::flat_hash_map<std::string, std::size_t> anchor_counts_;
+  std::vector<std::pair<std::string, std::string>> section_links_;
 };
 
 // Escapes text for HTML character data or a quoted attribute respectively.
@@ -47,6 +49,7 @@ class HtmlBackend final : public HelpBackend {
 // Converts the stable model identifier spelling to the anchor spelling used by
 // the HTML document and its internal references.
 [[nodiscard]] std::string HtmlSlug(std::string_view text);
+[[nodiscard]] std::string RenderTextHtml(std::string_view text);
 
 [[nodiscard]] std::string RenderInlinesHtml(const Inlines& runs);
 [[nodiscard]] std::string HtmlRefLink(const RefTarget& target, std::string_view label);

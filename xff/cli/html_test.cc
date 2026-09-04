@@ -6,8 +6,8 @@
 #include <cstddef>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -53,7 +53,7 @@ TEST_F(HtmlTest, ContainsNoExternalRuntimeAssets) {
 TEST_F(HtmlTest, UsesNonemptyUniqueAnchors) {
   constexpr std::string_view kPrefix = " id=\"";
   const std::string doc = HtmlReference();
-  std::unordered_set<std::string_view> anchors;
+  absl::flat_hash_set<std::string_view> anchors;
   std::size_t pos = 0;
   while ((pos = doc.find(kPrefix, pos)) != std::string::npos) {
     const std::size_t begin = pos + kPrefix.size();

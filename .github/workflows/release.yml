@@ -87,7 +87,9 @@ jobs:
         run: |
           set -euo pipefail
           tools/release_prep.sh "${RELEASE_TAG}" >/dev/null
-          bazel run --config=xff_docs //xff/cli:xff_full -- --html >XFF.html
+          bazel build --config=xff_docs //xff/cli:xff_reference_gen
+          cp bazel-bin/xff/cli/XFF.md.actual XFF.md
+          cp bazel-bin/xff/cli/XFF.html.actual XFF.html
           coverage_page="tag/${RELEASE_TAG#v}"
           instrumentation_filter="$(tools/extras.py --instrumentation-filter)"
           # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
