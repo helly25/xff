@@ -107,7 +107,7 @@ pre-commit hook, so a misaligned table fails CI; let the tool do the spacing.
 The expression vocabulary (`xff/registry`) and the global options
 (`xff/cli/globals.cc`) are the single sources of truth from which `--help`,
 `--help=TOPIC`, the `--help=list` index, the `--man` roff page, and the
-`--markdown` reference are all generated. So **every feature add or change carries
+`--help=full:markdown` reference are all generated. So **every feature add or change carries
 its self-documentation in the same change** - this is part of "done", never a
 follow-up:
 
@@ -124,7 +124,7 @@ follow-up:
 - the hand-maintained `kHelpText` usage page in `cli/main.cc`;
 - any prose docs the change affects (`docs/design-*.md`, `TODO.md`).
 
-The generated `--help` / `--man` / `--markdown` then stay complete by construction.
+The generated `--help` / `--man` / `--help=full:markdown` then stay complete by construction.
 
 When implementing a new feature, consider whether it belongs in the README's
 **Core Highlights & Architectural Advantages** section and **Tool Feature Comparison Matrix**.
@@ -178,7 +178,7 @@ Two limits, both about noise:
   (they are ambiguous with primaries). The parser handles this in ExprParser's
   `SkipGlobals()` + the roots loop.
 - **Flag-only; no subcommands.** xff is a single-purpose tool (like `fd` /
-  `ripgrep`), so meta operations are flags (`--help`, `--man`, `--markdown`,
+  `ripgrep`), so meta operations are flags (`--help`, `--man`, `--help=full:markdown`,
   `--explain`), never `git`-style subcommands; find and xff share one grammar,
   differing only in vocabulary. (Decided 2026-06-28.)
 - **A boolean capability belongs to a FAMILY or to an existing flag's value set - not to a

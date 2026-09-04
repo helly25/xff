@@ -89,6 +89,7 @@ jobs:
           if [[ "${target}" == tag/* ]]; then
             version="${target#tag/}"
             mkdir -p "site/releases/${version}"
+            cp report/XFF.html "site/releases/${version}/index.html"
             cp report/XFF.md "site/releases/${version}/XFF.md"
           fi
           # Bootstrap retained reports created before metadata became the report registry. Their

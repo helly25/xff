@@ -91,12 +91,43 @@ test::man_prints_roff_and_exits_zero() {
   expect_matches "(^|${NL})\.SH OPTIONS" "${out}"
 }
 
-test::markdown_prints_reference_and_exits_zero() {
+test::formatted_full_help_prints_each_structured_reference() {
   local out rc
-  out="$("$(_xff_bin)" --markdown 2>&1)" && rc=0 || rc=$?
+  expect_eq "$("$(_xff_bin)" --help=full 2>&1)" "$("$(_xff_bin)" --help=LONG:PLAIN 2>&1)"
+
+  out="$("$(_xff_bin)" --help=full:markdown 2>&1)" && rc=0 || rc=$?
   expect_eq "0" "${rc}"
   expect_matches "(^|${NL})# xff" "${out}"
   expect_matches "(^|${NL})## Options" "${out}"
+  expect_eq "${out}" "$("$(_xff_bin)" --help=long:md 2>&1)"
+
+  out="$("$(_xff_bin)" --help=long:html 2>&1)" && rc=0 || rc=$?
+  expect_eq "0" "${rc}"
+  expect_matches "(^|${NL})<!doctype html>" "${out}"
+  expect_matches '<section id="options">' "${out}"
+  expect_matches "</html>($|${NL})" "${out}"
+
+  expect_eq "$("$(_xff_bin)" --man 2>&1)" "$("$(_xff_bin)" --help=full:roff 2>&1)"
+}
+
+test::formatted_help_rejects_unknown_formats_and_partial_topics() {
+  local out rc
+  out="$("$(_xff_bin)" --help=full:jsonl 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "unknown help format" "${out}"
+
+  out="$("$(_xff_bin)" --help=fields:html 2>&1)" && rc=0 || rc=$?
+  expect_eq "2" "${rc}"
+  expect_output_contains "only for" "${out}"
+}
+
+test::removed_standalone_document_flags_are_unknown() {
+  local flag out rc
+  for flag in --markdown --html; do
+    out="$("$(_xff_bin)" "${flag}" 2>&1)" && rc=0 || rc=$?
+    expect_eq "2" "${rc}"
+    expect_output_contains "unknown option '${flag}'" "${out}"
+  done
 }
 
 test_runner

@@ -76,5 +76,6 @@ awk -v tag="${VERSION}" '
   grab { print }
 ' CHANGELOG.md
 printf '\n## Release resources\n\n'
-printf '%s\n' "- [Full reference (XFF.md)](https://mboworks.github.io/xff/releases/${VERSION}/XFF.md)"
+printf '%s\n' "- [Full HTML reference](https://mboworks.github.io/xff/releases/${VERSION}/)"
+printf '%s\n' "- [Raw reference (XFF.md)](https://mboworks.github.io/xff/releases/${VERSION}/XFF.md)"
 printf '%s\n' "- [Coverage report](https://mboworks.github.io/xff/coverage/tag/${VERSION}/)"

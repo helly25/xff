@@ -15,10 +15,26 @@
 
 """mboworks_xff/tools (mirrors mboworks/mbo)."""
 
+load("@mboworks_bashtest//bashtest:bashtest.bzl", "bashtest")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//xff:cc.bzl", "cc_binary")
 
 package(default_visibility = ["//visibility:private"])
+
+sh_binary(
+    name = "generate_reference",
+    srcs = ["generate_reference.sh"],
+    visibility = ["//xff/cli:__pkg__"],
+)
+
+bashtest(
+    name = "generate_reference_test",
+    srcs = ["generate_reference_test.sh"],
+    data = [
+        "generate_reference_fake.sh",
+        ":generate_reference",
+    ],
+)
 
 # The MSan RUNTIME suppression file, exposed so xff/cc.bzl's cc_binary / cc_test wrappers can put it
 # in each executable's `data` (runfiles) under --config=msan. MSan reads it at process start, so a

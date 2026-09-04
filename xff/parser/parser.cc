@@ -70,7 +70,7 @@ bool IsHoistableGlobal(std::string_view arg) {
 // is what prevents a lookalike inside `-exec`'s raw argument run from being
 // mistaken for an xff request.
 constexpr bool IsMetaFlag(std::string_view arg) {
-  constexpr auto kMetaFlags = mbo::container::MakeLimitedSet<10>(std::initializer_list<std::string_view>{
+  constexpr auto kMetaFlags = mbo::container::MakeLimitedSet<9>(std::initializer_list<std::string_view>{
       "--help",
       "-h",
       "-help",
@@ -80,7 +80,6 @@ constexpr bool IsMetaFlag(std::string_view arg) {
       "--version",
       "-version",
       "--man",
-      "--markdown",
   });
   return kMetaFlags.contains(arg) || absl::StartsWith(arg, "--help=");
 }
