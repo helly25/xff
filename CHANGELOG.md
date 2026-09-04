@@ -1,7 +1,14 @@
 <!-- SPDX-FileCopyrightText: Copyright (c) M. Boerger, the MBO Works authors -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# 0.4.0
+# 0.3.1
+
+## Project
+
+- Publish GitHub build-provenance attestations for every release binary, and link each release to
+  its retained production coverage report and versioned `XFF.md` reference on MBO Works Pages.
+- Derive release coverage instrumentation from the extras registry so every enabled extension is
+  measured automatically rather than depending on a manually maintained filter.
 
 # 0.3.0
 
