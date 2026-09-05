@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-05 18:43:10</td>
+            <td class="headerValue">2026-09-05 21:16:51</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -142,7 +142,7 @@
 <span id="L62"><span class="lineNum">      62</span>                 :             : </span>
 <span id="L63"><span class="lineNum">      63</span>                 :<span class="tlaGNC">         188 : bool Collections::Add(std::string_view name, const Visit&amp; visit) {</span></span>
 <span id="L64"><span class="lineNum">      64</span>                 :<span class="tlaGNC">         188 :   const std::size_t entry_bytes = visit.path.size() + visit.name.size() + visit.root.size();</span></span>
-<span id="L65"><span class="lineNum">      65</span> [<span class="tlaGBC" title="branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="branch 1 was taken 167 times"> + </span>][<span class="tlaGBC" title="branch &quot;2&quot; was taken 8 times"> + </span><span class="tlaGBC" title="branch &quot;3&quot; was taken 13 times"> + </span>]:<span class="tlaGNC">         188 :   if ((budget_.rows != 0 &amp;&amp; rows_ + 1 &gt; budget_.rows) || (budget_.bytes != 0 &amp;&amp; bytes_ + entry_bytes &gt; budget_.bytes)) {</span></span>
+<span id="L65"><span class="lineNum">      65</span> [<span class="tlaGBC" title="branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="branch 1 was taken 167 times"> + </span>][<span class="tlaGBC" title="branch &quot;2&quot; was taken 8 times"> + </span><span class="tlaGBC" title="branch &quot;3&quot; was taken 13 times"> + </span>]:<span class="tlaGNC">         188 :   if ((budget_.rows != 0 &amp;&amp; rows_ &gt;= budget_.rows) || (budget_.bytes != 0 &amp;&amp; bytes_ + entry_bytes &gt; budget_.bytes)) {</span></span>
 <span class="lineNum">        </span> [<span class="tlaGBC" title="branch &quot;4&quot; was taken 8 times"> + </span><span class="tlaGBC" title="branch &quot;5&quot; was taken 172 times"> + </span>][<span class="tlaGBC" title="branch &quot;6&quot; was taken 7 times"> + </span><span class="tlaGBC" title="branch &quot;7&quot; was taken 1 time"> + </span>]
 <span id="L66"><span class="lineNum">      66</span>                 :<span class="tlaGNC">          15 :     overflowed_ = true;</span></span>
 <span id="L67"><span class="lineNum">      67</span>                 :<span class="tlaGNC">          15 :     return false;</span></span>
