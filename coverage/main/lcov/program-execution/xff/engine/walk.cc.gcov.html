@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-05 14:42:36</td>
+            <td class="headerValue">2026-09-05 15:49:40</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -192,7 +192,7 @@
 <span id="L112"><span class="lineNum">     112</span>                 :             :  private:</span>
 <span id="L113"><span class="lineNum">     113</span>                 :             :   // A job is ready or the pool is stopping. `absl::Mutex::Await` evaluates this</span>
 <span id="L114"><span class="lineNum">     114</span>                 :             :   // with `mutex_` held, so it requires the lock.</span>
-<span id="L115"><span class="lineNum">     115</span> [<span class="tlaGBC" title="branch 0 was taken 2986 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4849 times"> + </span>][<span class="tlaGBC" title="branch &quot;2&quot; was taken 1428 times"> + </span><span class="tlaGBC" title="branch &quot;3&quot; was taken 3421 times"> + </span>]:<span class="tlaGNC">        7835 :   bool Pending() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) { return stop_ || !queue_.empty(); }</span></span>
+<span id="L115"><span class="lineNum">     115</span> [<span class="tlaGBC" title="branch 0 was taken 3002 times"> + </span><span class="tlaGBC" title="branch 1 was taken 4996 times"> + </span>][<span class="tlaGBC" title="branch &quot;2&quot; was taken 1452 times"> + </span><span class="tlaGBC" title="branch &quot;3&quot; was taken 3544 times"> + </span>]:<span class="tlaGNC">        7998 :   bool Pending() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_) { return stop_ || !queue_.empty(); }</span></span>
 <span id="L116"><span class="lineNum">     116</span>                 :             : </span>
 <span id="L117"><span class="lineNum">     117</span>                 :             :   // Worker loop: drain jobs until stopped and the queue is empty. Caller (the</span>
 <span id="L118"><span class="lineNum">     118</span>                 :             :   // worker thread) must NOT hold `mutex_`.</span>
@@ -361,9 +361,9 @@
 <span id="L281"><span class="lineNum">     281</span>         [<span class="tlaUNC" title="branch 0 was not taken"> - </span><span class="tlaGBC" title="branch 1 was taken 1476 times"> + </span>]:<span class="tlaGNC">        1476 :     MBO_ASSIGN_OR_RETURN(const std::vector&lt;vfs::Entry&gt; entries, fs_.ReadDir(dir));</span></span>
 <span id="L282"><span class="lineNum">     282</span>                 :<span class="tlaGNC">        1476 :     std::vector&lt;Stated&gt; children;</span></span>
 <span id="L283"><span class="lineNum">     283</span>                 :<span class="tlaGNC">        1476 :     children.reserve(entries.size());</span></span>
-<span id="L284"><span class="lineNum">     284</span>         [<span class="tlaGBC" title="branch 0 was taken 3344 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1476 times"> + </span>]:<span class="tlaGNC">        3344 :     for (const vfs::Entry&amp; entry : entries) {</span></span>
-<span id="L285"><span class="lineNum">     285</span>                 :<span class="tlaGNC">        3344 :       children.push_back(StatNode(entry.path, follow_children_, entry.name));</span></span>
-<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">        3344 :     }</span></span>
+<span id="L284"><span class="lineNum">     284</span>         [<span class="tlaGBC" title="branch 0 was taken 3345 times"> + </span><span class="tlaGBC" title="branch 1 was taken 1476 times"> + </span>]:<span class="tlaGNC">        3345 :     for (const vfs::Entry&amp; entry : entries) {</span></span>
+<span id="L285"><span class="lineNum">     285</span>                 :<span class="tlaGNC">        3345 :       children.push_back(StatNode(entry.path, follow_children_, entry.name));</span></span>
+<span id="L286"><span class="lineNum">     286</span>                 :<span class="tlaGNC">        3345 :     }</span></span>
 <span id="L287"><span class="lineNum">     287</span>                 :<span class="tlaGNC">        1476 :     return children;</span></span>
 <span id="L288"><span class="lineNum">     288</span>                 :<span class="tlaGNC">        1476 :   }</span></span>
 <span id="L289"><span class="lineNum">     289</span>                 :             : </span>
