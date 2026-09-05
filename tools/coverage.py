@@ -271,7 +271,14 @@ def main(argv: list[str] | None = None) -> int:
         print("coverage report contains no files selected by policy", file=sys.stderr)
         return 2
     if args.baseline and args.write_baseline:
-        baseline = {"schema": 1, "description": "Bazel LCOV with GCC 14; scope and exclusions are defined by coverage_policy.json", "measurements": measured}
+        baseline = {
+            "schema": 1,
+            "description": (
+                "Bazel LCOV with hermetic Clang/LLVM; scope and exclusions are defined by "
+                "coverage_policy.json"
+            ),
+            "measurements": measured,
+        }
         args.baseline.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
     effective = coverage_policy.policies(policy)
     minimums, targets = thresholds(policy)
