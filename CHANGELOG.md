@@ -1,7 +1,7 @@
 <!-- SPDX-FileCopyrightText: Copyright (c) M. Boerger, the MBO Works authors -->
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 
-# 0.4.0
+# 0.3.2
 
 - Check in formatter-clean C++ mirrors of embedded license bodies and verify each one against its
   authoritative license text with Bazel, giving every platform and build configuration the same
