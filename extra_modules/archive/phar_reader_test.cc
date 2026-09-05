@@ -180,6 +180,12 @@ struct PharReaderTest : ::testing::Test {
     std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
     return path;
   }
+
+  static std::string WriteBytes(std::string_view bytes, std::string_view name) {
+    std::string path = absl::StrCat(::testing::TempDir(), "/", name);
+    std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    return path;
+  }
 };
 
 TEST_F(PharReaderTest, ListsMembersWithTheirPathsSizesModesAndTimes) {
@@ -411,6 +417,38 @@ TEST_F(PharReaderTest, ReadsAMemberWhoseDataRunsPastTheContainerAsCorruption) {
   std::string phar = MakePhar({{.name = "a.txt", .content = "0123456789"}});
   phar.resize(phar.size() - 4);
   EXPECT_THAT(ReadPharMember(phar, "a.txt"), StatusIs(absl::StatusCode::kDataLoss));
+  EXPECT_THAT(ParsePharLayout(phar), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("data section is truncated")));
+}
+
+TEST_F(PharReaderTest, RejectsAnEmptyMemberNameAfterCommittingToTheManifest) {
+  constexpr std::string_view kStub = "<?php __HALT_COMPILER(); ?>\n";
+  std::string phar = MakePhar({{.name = "", .content = "a"}}, kStub);
+  // An empty-name entry is one byte shorter than the smallest plausible entry. Add one metadata byte
+  // so the up-front plausibility check commits to this as a phar and the entry parser diagnoses the
+  // actual defect.
+  ++phar[kStub.size()];
+  constexpr std::size_t kMetadataLengthInManifest = 42;
+  constexpr std::size_t kMetadataInManifest = 46;
+  phar[kStub.size() + 4 + kMetadataLengthInManifest] = '\1';
+  phar.insert(kStub.size() + 4 + kMetadataInManifest, 1, 'x');
+
+  EXPECT_THAT(ListPharMembers(phar), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("empty name")));
+}
+
+TEST_F(PharReaderTest, RejectsAnUnknownMemberCompressionMethod) {
+  constexpr std::uint32_t kUnknownCompression = 0x00003000;
+  const std::string phar =
+      MakePhar({{.name = "a.txt", .content = "a", .flags = std::uint32_t{0644} | kUnknownCompression}});
+  EXPECT_THAT(
+      ReadPharMember(phar, "a.txt"),
+      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("unknown compression method")));
+}
+
+TEST_F(PharReaderTest, FileReadDetectsMemberDataTruncatedAfterItsManifest) {
+  std::string phar = MakePhar({{.name = "a.txt", .content = "content"}});
+  phar.resize(phar.size() - 3);
+  const std::string path = WriteBytes(phar, "truncated-member.phar");
+  EXPECT_THAT(ReadPharMemberOfFile(path, "a.txt"), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("past the end")));
 }
 
 TEST_F(PharReaderTest, TheFileEntryPointsSeeTheSameContainer) {

@@ -73,10 +73,30 @@ def _function_markers(source_lines: list[str]) -> tuple[set[int], dict[int, int]
     return excluded, merged
 
 
+def _excluded_blocks(source_lines: list[str]) -> set[int]:
+    """Returns lines inside explicit LCOV exclusion blocks, including markers."""
+    excluded: set[int] = set()
+    start: int | None = None
+    for number, line in enumerate(source_lines, start=1):
+        if "LCOV_EXCL_START" in line:
+            if start is not None:
+                raise ValueError(f"nested LCOV_EXCL_START at line {number}")
+            start = number
+        if start is not None:
+            excluded.add(number)
+        if "LCOV_EXCL_STOP" in line:
+            if start is None:
+                raise ValueError(f"LCOV_EXCL_STOP without LCOV_EXCL_START at line {number}")
+            start = None
+    if start is not None:
+        raise ValueError(f"LCOV_EXCL_START at line {start} has no LCOV_EXCL_STOP")
+    return excluded
+
+
 def normalize_record(record: str, source: Path) -> str:
     """Applies source coverage directives to one raw LCOV record."""
     source_lines = source.read_text(encoding="utf-8").splitlines()
-    excluded_lines = {
+    excluded_lines = _excluded_blocks(source_lines) | {
         number
         for number, line in enumerate(source_lines, start=1)
         if "LCOV_EXCL_LINE" in line

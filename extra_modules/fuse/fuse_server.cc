@@ -162,7 +162,7 @@ std::vector<struct fuse_session*>& LiveSessions() {
   return sessions;
 }
 
-void SignalExitAll(int signo) {
+void SignalExitAll(int signo) {  // LCOV_EXCL_FUNC_LINE, LCOV_EXCL_START: exercising this terminates the process.
   // Exercising the registered fatal-signal handler terminates the test process.
   for (struct fuse_session* session : LiveSessions()) {  // LCOV_EXCL_BR_LINE
     ResolvedApi()->session_exit(session);
@@ -174,7 +174,7 @@ void SignalExitAll(int signo) {
   action.sa_handler = SIG_DFL;
   static_cast<void>(::sigaction(signo, &action, nullptr));
   static_cast<void>(::raise(signo));  // NOLINT(concurrency-mt-unsafe): signal handler, single delivery
-}
+}  // LCOV_EXCL_STOP
 
 void InstallSignalHandlersOnce() {
   static const bool kInstalled = [] {
@@ -197,8 +197,10 @@ void OpLookup(fuse_req_t req, fuse_ino_t parent, const char* name) {
   FuseServer::Impl& impl = ImplOf(req);
   const std::string parent_path = impl.PathOf(parent);
   if (parent_path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only registered parent inodes.
+    // LCOV_EXCL_START: the kernel cannot issue a lookup for an inode it was not given.
     api.reply_err(req, ENOENT);
     return;
+    // LCOV_EXCL_STOP
   }
   const std::optional<std::string> path = ChildPath(*impl.fs, parent_path, name);
   if (!path.has_value()) {
@@ -223,8 +225,10 @@ void OpGetattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* /*file_inf
   FuseServer::Impl& impl = ImplOf(req);
   const std::string path = impl.PathOf(ino);
   if (path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only registered inodes.
+    // LCOV_EXCL_START: the kernel cannot request attributes for an inode it was not given.
     api.reply_err(req, ENOENT);
     return;
+    // LCOV_EXCL_STOP
   }
   const absl::StatusOr<vfs::Metadata> metadata = impl.fs->Stat(path, /*follow_symlinks=*/false);
   if (!metadata.ok()) {
@@ -242,8 +246,10 @@ void OpReaddir(fuse_req_t req, fuse_ino_t ino, size_t size, off_t off, struct fu
   FuseServer::Impl& impl = ImplOf(req);
   const std::string path = impl.PathOf(ino);
   if (path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only registered directory inodes.
+    // LCOV_EXCL_START: the kernel cannot enumerate an inode it was not given.
     api.reply_err(req, ENOENT);
     return;
+    // LCOV_EXCL_STOP
   }
   const absl::StatusOr<std::vector<vfs::Entry>> entries = impl.fs->ReadDir(path);
   if (!entries.ok()) {
@@ -294,8 +300,10 @@ void OpOpen(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* file_info) {
   }
   const std::string path = impl.PathOf(ino);
   if (path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only inodes returned by lookup.
+    // LCOV_EXCL_START: the kernel cannot open an inode it was not given.
     api.reply_err(req, ENOENT);
     return;
+    // LCOV_EXCL_STOP
   }
   // Whole-content read at open: archive member decode is sequential and expensive, while the
   // kernel asks in small chunks; the open handle owns the bytes until release.
@@ -319,14 +327,18 @@ void OpRead(fuse_req_t req, fuse_ino_t /*ino*/, size_t size, off_t off, struct f
   const absl::MutexLock lock(impl.mutex);
   const auto found = impl.contents.find(file_info->fh);
   if (found == impl.contents.end()) {  // LCOV_EXCL_BR_LINE: FUSE reads only handles accepted by open.
+    // LCOV_EXCL_START: the kernel cannot read a handle that this server did not accept.
     api.reply_err(req, EBADF);
     return;
+    // LCOV_EXCL_STOP
   }
   const std::string& content = found->second;
   const auto offset = static_cast<std::size_t>(off);
   if (offset >= content.size()) {  // LCOV_EXCL_BR_LINE: the kernel does not request bytes beyond EOF.
+    // LCOV_EXCL_START: libfuse suppresses reads whose offset is already at or beyond EOF.
     api.reply_buf(req, content.data(), 0);
     return;
+    // LCOV_EXCL_STOP
   }
   api.reply_buf(
       req, std::next(content.data(), static_cast<std::ptrdiff_t>(offset)), std::min(size, content.size() - offset));
@@ -347,8 +359,10 @@ void OpReadlink(fuse_req_t req, fuse_ino_t ino) {
   FuseServer::Impl& impl = ImplOf(req);
   const std::string path = impl.PathOf(ino);
   if (path.empty()) {  // LCOV_EXCL_BR_LINE: FUSE supplies only inodes returned by lookup.
+    // LCOV_EXCL_START: the kernel cannot readlink an inode it was not given.
     api.reply_err(req, ENOENT);
     return;
+    // LCOV_EXCL_STOP
   }
   const absl::StatusOr<std::string> target = impl.fs->ReadLink(path);
   if (!target.ok()) {

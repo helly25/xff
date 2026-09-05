@@ -415,7 +415,7 @@ absl::StatusOr<std::string> TranslateOption(const PackSetting& option, const For
       return absl::StrCat(spec->writer_option, "=", parsed);
     }
   }
-  return absl::InternalError("unhandled pack option kind");
+  return absl::InternalError("unhandled pack option kind");  // LCOV_EXCL_LINE: exhaustive enum switch above.
 }
 
 using OptionalFormatSuffix = mbo::types::OptionalRef<const FormatSuffix>;

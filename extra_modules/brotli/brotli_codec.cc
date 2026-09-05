@@ -169,7 +169,9 @@ absl::Status EncodeFile(const stdfs::path& source, const stdfs::path& destinatio
   }
   const EncoderPtr encoder{BrotliEncoderCreateInstance(nullptr, nullptr, nullptr)};
   if (encoder == nullptr) {
+    // LCOV_EXCL_START: Brotli exposes no allocator-failure injection when using its default allocator.
     return absl::ResourceExhaustedError("cannot allocate the Brotli encoder");
+    // LCOV_EXCL_STOP
   }
   if (BrotliEncoderSetParameter(encoder.get(), BROTLI_PARAM_QUALITY, static_cast<std::uint32_t>(quality))
           == BROTLI_FALSE
@@ -322,7 +324,9 @@ absl::StatusOr<std::string> DecodeRawStream(
     std::uint64_t max_bytes) {
   const DecoderPtr decoder{BrotliDecoderCreateInstance(nullptr, nullptr, nullptr)};
   if (decoder == nullptr) {
+    // LCOV_EXCL_START: Brotli exposes no allocator-failure injection when using its default allocator.
     return absl::ResourceExhaustedError("cannot allocate the Brotli decoder");
+    // LCOV_EXCL_STOP
   }
   std::array<std::uint8_t, kBlockSize> input_buffer{};
   std::array<std::uint8_t, kBlockSize> output_buffer{};

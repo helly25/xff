@@ -571,6 +571,8 @@ cc_test(
     name = "archive_register_test",
     size = "small",
     srcs = ["archive_register_test.cc"],
+    data = ["test_data/tarbased.phar.tar"],
+    env = {"XFF_ARCHIVE_REGISTER_PHAR": "$(rootpath test_data/tarbased.phar.tar)"},
     deps = [
         ":archive_extension_cc",
         ":archive_fs_cc",

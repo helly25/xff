@@ -20,6 +20,7 @@
 
 #include "xff/archive/archive_register.h"
 
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -97,6 +98,15 @@ TEST_F(ArchiveRegisterTest, TheSeamReachesTheRealWriterAndKeepsItsErrors) {
   // An output name carrying no writable format is InvalidArgument; with no registrar the seam would
   // answer Unimplemented instead, which is the regression this guards.
   EXPECT_THAT(PackContainer("/tmp/xff-register.rar", {}), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ArchiveRegisterTest, TheWriterRefusesToInvalidateAnArchiveBasedPharSignature) {
+  // NOLINTNEXTLINE(concurrency-mt-unsafe): Bazel's immutable test environment.
+  const char* const fixture = std::getenv("XFF_ARCHIVE_REGISTER_PHAR");
+  ASSERT_THAT(fixture, Not(Eq(nullptr)));
+  EXPECT_THAT(
+      RemoveContainerMembers(fixture, {"data/readme.txt"}),
+      StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("signature")));
 }
 
 TEST_F(ArchiveRegisterTest, RefreshMergesExtensionVocabularyAndRoutesItsPacker) {

@@ -186,9 +186,9 @@ jobs:
             --disk-cache="${HOME}/.cache/bazel-disk" \
             --disk-cache-max-size=600M
 
-  # GCC/gcov is the stable measurement toolchain. This is a production-code gate,
-  # not merely another test cell: it publishes both the raw LCOV data and the
-  # policy-rendered capability/extension report, and enforces changed-line coverage.
+  # Coverage follows the authoritative hermetic Clang/libc++ build. This is a production-code
+  # gate, not merely another test cell: it publishes both the raw LCOV data and the policy-rendered
+  # capability/extension report, and enforces changed-line coverage.
   coverage:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
@@ -198,7 +198,7 @@ jobs:
           fetch-depth: 0
       - uses: bazelbuild/setup-bazelisk@v3
       # Coverage instrumentation has distinct action keys, so keep its compiled outputs in a
-      # dedicated cache rather than crowding out the ordinary GCC build. The stable key lets a
+      # dedicated cache rather than crowding out the ordinary Clang build. The stable key lets a
       # later run incrementally rebuild only changed coverage objects.
       - name: Mount Bazel coverage disk cache
         uses: actions/cache@v6
@@ -207,29 +207,14 @@ jobs:
           key: bazel-disk-coverage-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
             bazel-disk-coverage-
-      # Reuse the normal Ubuntu/GCC repository cache: it contains the downloaded Bazel modules
-      # needed by this full build, but not the hermetic LLVM archive fetched only by clang jobs.
-      - name: Mount Bazel repo cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/bazel-repo
-          key: bazel-repo-ubuntu-latest-default-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
-          restore-keys: |
-            bazel-repo-ubuntu-latest-default-
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      - name: Install GCC 14 and integration-test dependencies
+      - name: Install coverage and integration-test dependencies
         run: |
           # Ubuntu's lcov package supplies the Perl dependencies, but its old genhtml ignores
           # metric-specific color thresholds. Install the pinned current release over it below.
-          sudo apt-get install -y gcc-14 g++-14 lcov mandoc fuse3 libfuse3-3
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 \
-            --slave /usr/bin/g++ g++ /usr/bin/g++-14 \
-            --slave /usr/bin/gcov gcov /usr/bin/gcov-14
-          sudo update-alternatives --set gcc /usr/bin/gcc-14
-          gcc --version
-          gcov --version
+          sudo apt-get install -y lcov mandoc fuse3 libfuse3-3
           tools/install_lcov.sh "${RUNNER_TEMP}/lcov"
           echo "${RUNNER_TEMP}/lcov/bin" >>"${GITHUB_PATH}"
       - name: Collect and enforce coverage
@@ -243,12 +228,12 @@ jobs:
           INSTRUMENTATION_FILTER="$(tools/extras.py --instrumentation-filter)"
           # shellcheck disable=SC2046  # deliberate splitting into Bazel target patterns
           bazel coverage //... $(tools/extras.py --wildcards) \
+            --config=clang-coverage \
             --config=xff_docs \
             --config=xff_fuse_tests_required \
             --combined_report=lcov \
             --disk_cache=$HOME/.cache/bazel-disk \
-            --instrumentation_filter="${INSTRUMENTATION_FILTER}" \
-            --repository_cache=$HOME/.cache/bazel-repo
+            --instrumentation_filter="${INSTRUMENTATION_FILTER}"
           cp "$(bazel info output_path)/_coverage/_coverage_report.dat" coverage.lcov
           printf '%s\n' "${COVERAGE_PAGE}" >coverage-target.txt
           # Derive extension source paths from the same extras registry that supplies the Bazel
@@ -257,9 +242,9 @@ jobs:
             --policy coverage_policy.json \
             --source-root coverage-source-tree
           python3 tools/coverage_lcovrc.py coverage_policy.json coverage.lcovrc
-          # LLVM can mark a hit line whose branches remain unevaluated, and GCC 14 cannot provide
-          # function-end exclusions. LCOV 2.5 calls these inconsistent/corrupt and unsupported;
-          # repeating the warning categories suppresses their expected warning summaries.
+          # LLVM can mark a hit line whose branches remain unevaluated. LCOV 2.5 calls these
+          # inconsistent/corrupt; repeating the warning categories suppresses their expected
+          # warning summaries.
           genhtml coverage-html.lcov \
             --branch-coverage \
             --config-file coverage.lcovrc \

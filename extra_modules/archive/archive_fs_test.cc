@@ -82,6 +82,7 @@ std::string WriteFixtureTar() {
     archive_entry_free(entry);
   };
   add_file("top.txt", "top", 0644);
+  add_file("./prefixed.txt", "prefix", 0644);
   add_file("dir/sub/deep.txt", "deep!", 0600);
 
   // A symlink member, so ReadLink has something real to resolve.
@@ -96,6 +97,15 @@ std::string WriteFixtureTar() {
   archive_write_close(out);
   archive_write_free(out);
   return path;
+}
+
+std::string TruncatedPhar() {
+  std::string phar = "<?php __HALT_COMPILER(); ?>\n";
+  phar.append("\x13\0\0\0", 4);  // Declares a 19-byte manifest.
+  phar.append("\0\0\0\0", 4);    // No members.
+  phar.append("\x11\x10", 2);    // API version 1.1.1.
+  phar.append(12, '\0');         // Flags and two empty length-prefixed fields: only 18 bytes.
+  return phar;
 }
 
 struct ArchiveFsTest : ::testing::Test {
@@ -121,6 +131,16 @@ TEST_F(ArchiveFsTest, OpenRejectsSomethingThatIsNotAnArchive) {
   const std::string junk = TempPath("not_an_archive.txt");
   std::ofstream(junk) << "this is plain text, not an archive at all\n";
   EXPECT_THAT(ArchiveFileSystem::Open(junk), StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST_F(ArchiveFsTest, OpenPreservesCorruptionReportedByTheNativePharReader) {
+  const std::string path = TempPath("truncated.phar");
+  const std::string bytes = TruncatedPhar();
+  std::ofstream(path, std::ios::binary).write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+  EXPECT_THAT(ArchiveFileSystem::Open(path), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated")));
+  EXPECT_THAT(
+      ArchiveFileSystem::OpenBytes("nested.phar", bytes),
+      StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated")));
 }
 
 TEST_F(ArchiveFsTest, AnEmptyFileOpensAsAnArchiveWithNoMembers) {
@@ -153,8 +173,9 @@ TEST_F(ArchiveFsTest, TheContainerItselfReadsAsTheArchiveRoot) {
   const ArchiveFileSystem fs = Fs();
   MBO_ASSERT_OK_AND_ASSIGN(const std::vector<vfs::Entry> entries, fs.ReadDir(ArchiveFsTest::Tar()));
   EXPECT_THAT(
-      entries,
-      UnorderedElementsAre(Field("name", &vfs::Entry::name, "dir"), Field("name", &vfs::Entry::name, "top.txt")));
+      entries, UnorderedElementsAre(
+                   Field("name", &vfs::Entry::name, "dir"), Field("name", &vfs::Entry::name, "prefixed.txt"),
+                   Field("name", &vfs::Entry::name, "top.txt")));
 }
 
 TEST_F(ArchiveFsTest, ImplicitParentDirectoriesAreSynthesized) {
@@ -204,6 +225,9 @@ TEST_F(ArchiveFsTest, AccessIsNeverWritableAndFollowsTheStoredBits) {
   // 0644 has no execute bit, so this is the stored answer rather than a blanket yes.
   EXPECT_THAT(fs.Access(top, vfs::AccessMode::kExecute), IsFalse());
   EXPECT_THAT(fs.Access(ArchiveFsTest::Tar(), vfs::AccessMode::kWrite), IsFalse());
+  EXPECT_THAT(fs.Access(ArchiveFsTest::Tar(), vfs::AccessMode::kRead), IsTrue());
+  EXPECT_THAT(fs.Access("/outside/archive", vfs::AccessMode::kRead), IsFalse());
+  EXPECT_THAT(fs.Access(JoinMemberPath(ArchiveFsTest::Tar(), "missing"), vfs::AccessMode::kRead), IsFalse());
 }
 
 TEST_F(ArchiveFsTest, ReadLinkResolvesASymlinkMemberAndRefusesOthers) {
@@ -213,6 +237,8 @@ TEST_F(ArchiveFsTest, ReadLinkResolvesASymlinkMemberAndRefusesOthers) {
   EXPECT_THAT(target, "sub/deep.txt");
   EXPECT_THAT(
       fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "top.txt")), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(fs.ReadLink(ArchiveFsTest::Tar()), StatusIs(absl::StatusCode::kInvalidArgument));
+  EXPECT_THAT(fs.ReadLink(JoinMemberPath(ArchiveFsTest::Tar(), "missing")), StatusIs(absl::StatusCode::kNotFound));
 }
 
 TEST_F(ArchiveFsTest, ReadContentYieldsTheMembersOwnBytes) {
@@ -245,8 +271,9 @@ TEST_F(ArchiveFsTest, OpenBytesIndexesAContainerThatHasNoPath) {
   MBO_ASSERT_OK_AND_ASSIGN(const ArchiveFileSystem fs, ArchiveFileSystem::OpenBytes("outer.tar!nested.tar", bytes));
   EXPECT_THAT(
       fs.ReadDir("outer.tar!nested.tar"),
-      IsOkAndHolds(
-          UnorderedElementsAre(Field("name", &vfs::Entry::name, "dir"), Field("name", &vfs::Entry::name, "top.txt"))));
+      IsOkAndHolds(UnorderedElementsAre(
+          Field("name", &vfs::Entry::name, "dir"), Field("name", &vfs::Entry::name, "prefixed.txt"),
+          Field("name", &vfs::Entry::name, "top.txt"))));
   EXPECT_THAT(fs.ReadContent("outer.tar!nested.tar!top.txt"), IsOkAndHolds("top"));
   // The nested label contains a separator itself, so resolving a member must not attribute it to
   // the outer archive by splitting at the first one.
@@ -293,6 +320,7 @@ constexpr std::array kIdentifiedMembers = std::to_array<std::string_view>({
     "dir",
     "dir/sub",
     "dir/sub/deep.txt",
+    "prefixed.txt",
     "top.txt",
 });
 
