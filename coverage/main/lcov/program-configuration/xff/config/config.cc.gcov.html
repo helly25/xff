@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-04 21:01:43</td>
+            <td class="headerValue">2026-09-04 23:57:51</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -210,11 +210,11 @@
 <span id="L127"><span class="lineNum">     127</span>                 :             : </span>
 <span id="L128"><span class="lineNum">     128</span>                 :             : }  // namespace</span>
 <span id="L129"><span class="lineNum">     129</span>                 :             : </span>
-<span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">        1085 : std::string_view DefaultStyleForProgram(std::string_view argv0) {</span></span>
-<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="branch 0 was taken 1071 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">        1085 :   if (const std::string_view::size_type slash = argv0.rfind('/'); slash != std::string_view::npos) {</span></span>
-<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">        1071 :     argv0 = argv0.substr(slash + 1);  // basename: the last path component</span></span>
+<span id="L130"><span class="lineNum">     130</span>                 :<span class="tlaGNC">        1087 : std::string_view DefaultStyleForProgram(std::string_view argv0) {</span></span>
+<span id="L131"><span class="lineNum">     131</span>         [<span class="tlaGBC" title="branch 0 was taken 1073 times"> + </span><span class="tlaGBC" title="branch 1 was taken 14 times"> + </span>]:<span class="tlaGNC">        1087 :   if (const std::string_view::size_type slash = argv0.rfind('/'); slash != std::string_view::npos) {</span></span>
+<span id="L132"><span class="lineNum">     132</span>                 :<span class="tlaGNC">        1073 :     argv0 = argv0.substr(slash + 1);  // basename: the last path component</span></span>
 <span id="L133"><span class="lineNum">     133</span>                 :             :   }</span>
-<span id="L134"><span class="lineNum">     134</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1084 times"> + </span>]:<span class="tlaGNC">        1085 :   if (argv0.empty()) {</span></span>
+<span id="L134"><span class="lineNum">     134</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 1086 times"> + </span>]:<span class="tlaGNC">        1087 :   if (argv0.empty()) {</span></span>
 <span id="L135"><span class="lineNum">     135</span>                 :<span class="tlaGNC">           1 :     return &quot;xff&quot;;  // no invocation name -&gt; the modern default</span></span>
 <span id="L136"><span class="lineNum">     136</span>                 :             :   }</span>
 <span id="L137"><span class="lineNum">     137</span>                 :             :   // A `_full` suffix marks the extras-included twin of a program (the `xff_full` full build, and</span>
@@ -222,7 +222,7 @@
 <span id="L139"><span class="lineNum">     139</span>                 :             :   // `find_full` -&gt; find, `rg_full` -&gt; rg. Without this strip, `find_full` would not match the</span>
 <span id="L140"><span class="lineNum">     140</span>                 :             :   // `find` built-in selector and would silently fall through to the xff default, losing find</span>
 <span id="L141"><span class="lineNum">     141</span>                 :             :   // semantics. The `_full` suffix is thus reserved for the full build and never a config name.</span>
-<span id="L142"><span class="lineNum">     142</span>         [<span class="tlaGBC" title="branch 0 was taken 271 times"> + </span><span class="tlaGBC" title="branch 1 was taken 813 times"> + </span>]:<span class="tlaGNC">        1084 :   if (argv0.ends_with(&quot;_full&quot;)) {</span></span>
+<span id="L142"><span class="lineNum">     142</span>         [<span class="tlaGBC" title="branch 0 was taken 271 times"> + </span><span class="tlaGBC" title="branch 1 was taken 815 times"> + </span>]:<span class="tlaGNC">        1086 :   if (argv0.ends_with(&quot;_full&quot;)) {</span></span>
 <span id="L143"><span class="lineNum">     143</span>                 :<span class="tlaGNC">         271 :     argv0.remove_suffix(std::string_view(&quot;_full&quot;).size());</span></span>
 <span id="L144"><span class="lineNum">     144</span>         [<span class="tlaGBC" title="branch 0 was taken 1 time"> + </span><span class="tlaGBC" title="branch 1 was taken 270 times"> + </span>]:<span class="tlaGNC">         271 :     if (argv0.empty()) {</span></span>
 <span id="L145"><span class="lineNum">     145</span>                 :<span class="tlaGNC">           1 :       return &quot;xff&quot;;  // a bare `_full` invocation name -&gt; the modern default</span></span>
@@ -234,7 +234,7 @@
 <span id="L151"><span class="lineNum">     151</span>                 :             :   // the base style at the modern xff default (ActiveStyle ignores a non-style selector). So</span>
 <span id="L152"><span class="lineNum">     152</span>                 :             :   // aliasing xff auto-activates the matching `mytool:` config block without a preset ever being</span>
 <span id="L153"><span class="lineNum">     153</span>                 :             :   // overloadable. An explicit --config still stacks (last wins).</span>
-<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">        1083 :   return argv0;</span></span>
+<span id="L154"><span class="lineNum">     154</span>                 :<span class="tlaGNC">        1085 :   return argv0;</span></span>
 <span id="L155"><span class="lineNum">     155</span>                 :             : }</span>
 <span id="L156"><span class="lineNum">     156</span>                 :             : </span>
 <span id="L157"><span class="lineNum">     157</span>                 :<span class="tlaGNC">          13 : std::string ExplainConfig(const std::vector&lt;ResolvedFlag&gt;&amp; resolved, const std::vector&lt;std::string&gt;&amp; cli_globals) {</span></span>

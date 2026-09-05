@@ -46,7 +46,7 @@
           </tr>
           <tr>
             <td class="headerItem">Test Date:</td>
-            <td class="headerValue">2026-09-04 21:01:43</td>
+            <td class="headerValue">2026-09-04 23:57:51</td>
             <td></td>
             <td class="headerItem">Functions:</td>
             <td class="headerCovTableEntryHi">100.0&nbsp;%</td>
@@ -1226,7 +1226,7 @@
 <span id="L1107"><span class="lineNum">    1107</span>                 :<span class="tlaGNC">         128 :   return Template::Compile(tmpl).Render(context);</span></span>
 <span id="L1108"><span class="lineNum">    1108</span>                 :             : }</span>
 <span id="L1109"><span class="lineNum">    1109</span>                 :             : </span>
-<span id="L1110"><span class="lineNum">    1110</span>                 :<span class="tlaGNC">          50 : absl::Span&lt;const FieldDoc&gt; FieldDocs() {</span></span>
+<span id="L1110"><span class="lineNum">    1110</span>                 :<span class="tlaGNC">          61 : absl::Span&lt;const FieldDoc&gt; FieldDocs() {</span></span>
 <span id="L1111"><span class="lineNum">    1111</span>                 :             :   static constexpr auto kFileAlias = std::to_array&lt;std::string_view&gt;({&quot;file&quot;});</span>
 <span id="L1112"><span class="lineNum">    1112</span>                 :             :   static constexpr auto kExtensionAlias = std::to_array&lt;std::string_view&gt;({&quot;extension&quot;});</span>
 <span id="L1113"><span class="lineNum">    1113</span>                 :             :   static constexpr auto kLanguageAlias = std::to_array&lt;std::string_view&gt;({&quot;language&quot;});</span>
@@ -1440,14 +1440,14 @@
 <span id="L1321"><span class="lineNum">    1321</span>                 :             :        .header = &quot;Grep context&quot;,</span>
 <span id="L1322"><span class="lineNum">    1322</span>                 :             :        .summary = &quot;1-based column of the match&quot;},</span>
 <span id="L1323"><span class="lineNum">    1323</span>                 :             :   });</span>
-<span id="L1324"><span class="lineNum">    1324</span>                 :<span class="tlaGNC">          50 :   return kDocs;</span></span>
+<span id="L1324"><span class="lineNum">    1324</span>                 :<span class="tlaGNC">          61 :   return kDocs;</span></span>
 <span id="L1325"><span class="lineNum">    1325</span>                 :             : }</span>
 <span id="L1326"><span class="lineNum">    1326</span>                 :             : </span>
-<span id="L1327"><span class="lineNum">    1327</span>                 :<span class="tlaGNC">          50 : const FieldHelpDocs&amp; FieldSyntaxDocs() {</span></span>
-<span id="L1328"><span class="lineNum">    1328</span>                 :<span class="tlaGNC">          21 :   static const FieldHelpDocs kDocs = [] {</span></span>
-<span id="L1329"><span class="lineNum">    1329</span>                 :<span class="tlaGNC">          42 :     const std::string path_components = absl::StrCat(</span></span>
-<span id="L1330"><span class="lineNum">    1330</span>                 :<span class="tlaGNC">          42 :         &quot;path component of the value: &quot;, absl::StrJoin(kPathComponents, &quot;|&quot;),</span></span>
-<span id="L1331"><span class="lineNum">    1331</span>                 :<span class="tlaGNC">          21 :         &quot;; any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}&quot;);</span></span>
+<span id="L1327"><span class="lineNum">    1327</span>                 :<span class="tlaGNC">          61 : const FieldHelpDocs&amp; FieldSyntaxDocs() {</span></span>
+<span id="L1328"><span class="lineNum">    1328</span>                 :<span class="tlaGNC">          29 :   static const FieldHelpDocs kDocs = [] {</span></span>
+<span id="L1329"><span class="lineNum">    1329</span>                 :<span class="tlaGNC">          58 :     const std::string path_components = absl::StrCat(</span></span>
+<span id="L1330"><span class="lineNum">    1330</span>                 :<span class="tlaGNC">          58 :         &quot;path component of the value: &quot;, absl::StrJoin(kPathComponents, &quot;|&quot;),</span></span>
+<span id="L1331"><span class="lineNum">    1331</span>                 :<span class="tlaGNC">          29 :         &quot;; any path-valued field composes, e.g. {relpath:stem}, {def.B:dir}&quot;);</span></span>
 <span id="L1332"><span class="lineNum">    1332</span>                 :             :     return FieldHelpDocs{</span>
 <span id="L1333"><span class="lineNum">    1333</span>                 :             :         .brace_rules =</span>
 <span id="L1334"><span class="lineNum">    1334</span>                 :             :             {</span>
@@ -1458,43 +1458,43 @@
 <span id="L1339"><span class="lineNum">    1339</span>                 :             :             },</span>
 <span id="L1340"><span class="lineNum">    1340</span>                 :             :         .dynamic_namespaces =</span>
 <span id="L1341"><span class="lineNum">    1341</span>                 :             :             {</span>
-<span id="L1342"><span class="lineNum">    1342</span>                 :<span class="tlaGNC">          21 :                 {.term = &quot;{0}..{N}&quot;, .description = &quot;-regex captures ({0} the whole match, {1}..{N} the groups)&quot;},</span></span>
-<span id="L1343"><span class="lineNum">    1343</span>                 :<span class="tlaGNC">          21 :                 {.term = absl::StrCat(&quot;{&quot;, kEnvironmentNamespace, &quot;NAME}&quot;),</span></span>
-<span id="L1344"><span class="lineNum">    1344</span>                 :<span class="tlaGNC">          21 :                  .description = &quot;a process environment variable&quot;},</span></span>
-<span id="L1345"><span class="lineNum">    1345</span>                 :<span class="tlaGNC">          42 :                 {.term = absl::StrCat(&quot;{&quot;, kDefinitionNamespace, &quot;NAME}&quot;), .description = &quot;a --define value&quot;},</span></span>
-<span id="L1346"><span class="lineNum">    1346</span>                 :<span class="tlaGNC">          42 :                 {.term = absl::StrCat(&quot;{&quot;, kCaptureNamespace, &quot;NAME}&quot;), .description = &quot;a -capture command result&quot;},</span></span>
+<span id="L1342"><span class="lineNum">    1342</span>                 :<span class="tlaGNC">          29 :                 {.term = &quot;{0}..{N}&quot;, .description = &quot;-regex captures ({0} the whole match, {1}..{N} the groups)&quot;},</span></span>
+<span id="L1343"><span class="lineNum">    1343</span>                 :<span class="tlaGNC">          29 :                 {.term = absl::StrCat(&quot;{&quot;, kEnvironmentNamespace, &quot;NAME}&quot;),</span></span>
+<span id="L1344"><span class="lineNum">    1344</span>                 :<span class="tlaGNC">          29 :                  .description = &quot;a process environment variable&quot;},</span></span>
+<span id="L1345"><span class="lineNum">    1345</span>                 :<span class="tlaGNC">          58 :                 {.term = absl::StrCat(&quot;{&quot;, kDefinitionNamespace, &quot;NAME}&quot;), .description = &quot;a --define value&quot;},</span></span>
+<span id="L1346"><span class="lineNum">    1346</span>                 :<span class="tlaGNC">          58 :                 {.term = absl::StrCat(&quot;{&quot;, kCaptureNamespace, &quot;NAME}&quot;), .description = &quot;a -capture command result&quot;},</span></span>
 <span id="L1347"><span class="lineNum">    1347</span>                 :             :             },</span>
 <span id="L1348"><span class="lineNum">    1348</span>                 :             :         .qualifiers =</span>
 <span id="L1349"><span class="lineNum">    1349</span>                 :             :             {</span>
-<span id="L1350"><span class="lineNum">    1350</span>                 :<span class="tlaGNC">          21 :                 {.term = &quot;{mtime:FMT}&quot;,</span></span>
+<span id="L1350"><span class="lineNum">    1350</span>                 :<span class="tlaGNC">          29 :                 {.term = &quot;{mtime:FMT}&quot;,</span></span>
 <span id="L1351"><span class="lineNum">    1351</span>                 :             :                  .description =</span>
-<span id="L1352"><span class="lineNum">    1352</span>                 :<span class="tlaGNC">          21 :                      &quot;time format: strftime (%Y-%m-%d) or preset (iso, epoch); see --time-format / --timezone&quot;},</span></span>
-<span id="L1353"><span class="lineNum">    1353</span>                 :<span class="tlaGNC">          21 :                 {.term = &quot;{size:h}&quot;, .description = &quot;human-readable size&quot;},</span></span>
-<span id="L1354"><span class="lineNum">    1354</span>                 :<span class="tlaGNC">          21 :                 {.term = &quot;{name:s/RE/R/f}&quot;,</span></span>
-<span id="L1355"><span class="lineNum">    1355</span>                 :<span class="tlaGNC">          21 :                  .description = &quot;RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)&quot;},</span></span>
-<span id="L1356"><span class="lineNum">    1356</span>                 :<span class="tlaGNC">          21 :                 {.term = &quot;{cap:m/RE/R/f}&quot;,</span></span>
+<span id="L1352"><span class="lineNum">    1352</span>                 :<span class="tlaGNC">          29 :                      &quot;time format: strftime (%Y-%m-%d) or preset (iso, epoch); see --time-format / --timezone&quot;},</span></span>
+<span id="L1353"><span class="lineNum">    1353</span>                 :<span class="tlaGNC">          29 :                 {.term = &quot;{size:h}&quot;, .description = &quot;human-readable size&quot;},</span></span>
+<span id="L1354"><span class="lineNum">    1354</span>                 :<span class="tlaGNC">          29 :                 {.term = &quot;{name:s/RE/R/f}&quot;,</span></span>
+<span id="L1355"><span class="lineNum">    1355</span>                 :<span class="tlaGNC">          29 :                  .description = &quot;RE2 rewrite of the value (flags g=all, i=ignore-case; any delimiter)&quot;},</span></span>
+<span id="L1356"><span class="lineNum">    1356</span>                 :<span class="tlaGNC">          29 :                 {.term = &quot;{cap:m/RE/R/f}&quot;,</span></span>
 <span id="L1357"><span class="lineNum">    1357</span>                 :             :                  .description =</span>
-<span id="L1358"><span class="lineNum">    1358</span>                 :<span class="tlaGNC">          21 :                      &quot;per-line extraction: a value stream, e.g. a --summary key (m//, s///'s list-producing sibling)&quot;},</span></span>
-<span id="L1359"><span class="lineNum">    1359</span>                 :<span class="tlaGNC">          21 :                 {.term = &quot;{cap:m/RE/R/;join(SEP)}&quot;,</span></span>
+<span id="L1358"><span class="lineNum">    1358</span>                 :<span class="tlaGNC">          29 :                      &quot;per-line extraction: a value stream, e.g. a --summary key (m//, s///'s list-producing sibling)&quot;},</span></span>
+<span id="L1359"><span class="lineNum">    1359</span>                 :<span class="tlaGNC">          29 :                 {.term = &quot;{cap:m/RE/R/;join(SEP)}&quot;,</span></span>
 <span id="L1360"><span class="lineNum">    1360</span>                 :             :                  .description =</span>
-<span id="L1361"><span class="lineNum">    1361</span>                 :<span class="tlaGNC">          21 :                      &quot;reduce the stream to one scalar (join, SEP default newline) so m// is usable in a scalar &quot;</span></span>
+<span id="L1361"><span class="lineNum">    1361</span>                 :<span class="tlaGNC">          29 :                      &quot;reduce the stream to one scalar (join, SEP default newline) so m// is usable in a scalar &quot;</span></span>
 <span id="L1362"><span class="lineNum">    1362</span>                 :             :                      &quot;context (-printf / --template / -exec); reducers are function-notation, e.g. join(, )&quot;},</span>
-<span id="L1363"><span class="lineNum">    1363</span>                 :<span class="tlaGNC">          21 :                 {.term = &quot;{path:COMP}&quot;, .description = path_components},</span></span>
+<span id="L1363"><span class="lineNum">    1363</span>                 :<span class="tlaGNC">          29 :                 {.term = &quot;{path:COMP}&quot;, .description = path_components},</span></span>
 <span id="L1364"><span class="lineNum">    1364</span>                 :             :             },</span>
 <span id="L1365"><span class="lineNum">    1365</span>                 :             :         .qualifier_pipeline =</span>
-<span id="L1366"><span class="lineNum">    1366</span>                 :<span class="tlaGNC">          21 :             &quot;An m// extraction is a left-to-right pipeline: s/// maps whatever is flowing (each line, then &quot;</span></span>
+<span id="L1366"><span class="lineNum">    1366</span>                 :<span class="tlaGNC">          29 :             &quot;An m// extraction is a left-to-right pipeline: s/// maps whatever is flowing (each line, then &quot;</span></span>
 <span id="L1367"><span class="lineNum">    1367</span>                 :             :             &quot;the scalar), and a terminal reducer such as join collapses the stream to one scalar.&quot;,</span>
 <span id="L1368"><span class="lineNum">    1368</span>                 :             :         .qualifier_example =</span>
-<span id="L1369"><span class="lineNum">    1369</span>                 :<span class="tlaGNC">          21 :             &quot;  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}\n&quot;</span></span>
+<span id="L1369"><span class="lineNum">    1369</span>                 :<span class="tlaGNC">          29 :             &quot;  {cap:m/PAT/REP/;s/PAT/REP/;join(SEP);s/PAT/REP/}\n&quot;</span></span>
 <span id="L1370"><span class="lineNum">    1370</span>                 :             :             &quot;       |________| |________| |_______| |________|\n&quot;</span>
 <span id="L1371"><span class="lineNum">    1371</span>                 :             :             &quot;       extract    map each   reduce    rewrite\n&quot;</span>
 <span id="L1372"><span class="lineNum">    1372</span>                 :             :             &quot;       per line   line       stream    scalar&quot;,</span>
 <span id="L1373"><span class="lineNum">    1373</span>                 :             :         .printf_note =</span>
-<span id="L1374"><span class="lineNum">    1374</span>                 :<span class="tlaGNC">          21 :             &quot;For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them &quot;</span></span>
+<span id="L1374"><span class="lineNum">    1374</span>                 :<span class="tlaGNC">          29 :             &quot;For -printf's own % directives (%p %f %s %t ...) and the `%{field}` escape that bridges them &quot;</span></span>
 <span id="L1375"><span class="lineNum">    1375</span>                 :             :             &quot;to this vocabulary, see the Printf directives (`--help=-printf`).&quot;,</span>
-<span id="L1376"><span class="lineNum">    1376</span>   [<span class="tlaGBC" title="branch 0 was taken 126 times"> + </span><span class="tlaGBC" title="branch 1 was taken 21 times"> + </span><span class="tlaGBC" title="branch 2 was taken 84 times"> + </span><span class="tlaGBC" title="branch 3 was taken 21 times"> + </span>]:<span class="tlaGNC">         819 :     };</span></span>
-<span id="L1377"><span class="lineNum">    1377</span>   [<span class="tlaGBC" title="branch 0 was taken 21 times"> + </span><span class="tlaGBC" title="branch 1 was taken 29 times"> + </span><span class="tlaGBC" title="branch 2 was taken 21 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          71 :   }();</span></span>
-<span id="L1378"><span class="lineNum">    1378</span>                 :<span class="tlaGNC">          50 :   return kDocs;</span></span>
+<span id="L1376"><span class="lineNum">    1376</span>   [<span class="tlaGBC" title="branch 0 was taken 174 times"> + </span><span class="tlaGBC" title="branch 1 was taken 29 times"> + </span><span class="tlaGBC" title="branch 2 was taken 116 times"> + </span><span class="tlaGBC" title="branch 3 was taken 29 times"> + </span>]:<span class="tlaGNC">        1131 :     };</span></span>
+<span id="L1377"><span class="lineNum">    1377</span>   [<span class="tlaGBC" title="branch 0 was taken 29 times"> + </span><span class="tlaGBC" title="branch 1 was taken 32 times"> + </span><span class="tlaGBC" title="branch 2 was taken 29 times"> + </span><span class="tlaUNC" title="branch 3 was not taken"> - </span>]:<span class="tlaGNC">          90 :   }();</span></span>
+<span id="L1378"><span class="lineNum">    1378</span>                 :<span class="tlaGNC">          61 :   return kDocs;</span></span>
 <span id="L1379"><span class="lineNum">    1379</span>                 :             : }</span>
 <span id="L1380"><span class="lineNum">    1380</span>                 :             : </span>
 <span id="L1381"><span class="lineNum">    1381</span>                 :<span class="tlaGNC">           3 : absl::Span&lt;const std::string_view&gt; FieldNames() {</span></span>
