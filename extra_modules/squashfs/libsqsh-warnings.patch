@@ -16,3 +16,12 @@ index f2ae125..6e394d2 100644
 @@ -131,2 +131,0 @@ out:
 -	assert(rv2 == 0);
 -
+@@ -180 +178 @@ file_iterator_mt(
+-			calloc(sizeof(struct FileIteratorMtBlock), (size_t)block_count);
++			calloc((size_t)block_count, sizeof(struct FileIteratorMtBlock));
+@@ -210 +208 @@ sqsh_file_iterator_mt(
+-	struct FileIteratorMt *mt = calloc(sizeof(struct FileIteratorMt), 1);
++	struct FileIteratorMt *mt = calloc(1, sizeof(struct FileIteratorMt));
+@@ -256 +254 @@ sqsh_file_to_stream_mt(
+-	struct FileToStreamMt *mt = calloc(sizeof(struct FileToStreamMt), 1);
++	struct FileToStreamMt *mt = calloc(1, sizeof(struct FileToStreamMt));
