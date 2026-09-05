@@ -420,11 +420,11 @@ repos:
         name: Test the release prep script
         description: |
           Runs the release_prep unit test (CHANGELOG guard, version stamping,
-          consistency check, release-notes output) when the release script, its
-          test, or the version check it calls changes.
+          consistency check, release-notes output, Clang reference generation)
+          when the release script, workflow, test, or version check changes.
         language: script
         entry: tools/release_prep_test.sh
-        files: ^tools/(release_prep\.sh|release_prep_test\.sh|check_module_versions\.py)$
+        files: ^(\.github/workflows/release\.yml|tools/(release_prep\.sh|release_prep_test\.sh|check_module_versions\.py))$
         pass_filenames: false
       - id: trigger-release-test
         name: Test the release trigger next-version logic

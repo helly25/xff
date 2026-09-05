@@ -17,9 +17,9 @@
 # Unit test for tools/release_prep.sh. Builds a throwaway fixture repository in a
 # temp directory (release_prep.sh operates relative to its own location, so a
 # self-contained copy exercises it without touching the real tree) and checks the
-# CHANGELOG guard, the version stamping, the consistency verification, and the
-# release-notes output. Run directly (`tools/release_prep_test.sh`) or via
-# pre-commit; no bazel needed.
+# CHANGELOG guard, the version stamping, the consistency verification, the
+# release-notes output, and the release workflow's Clang documentation build.
+# Run directly (`tools/release_prep_test.sh`) or via pre-commit; no bazel needed.
 
 set -euo pipefail
 
@@ -159,9 +159,20 @@ test_happy_path_stamps_and_emits_notes() {
   esac
 }
 
+# 4. Documentation generation compiles xff code, so it must use the same Clang
+#    toolchain as the release binaries and coverage job. GCC remains confined to
+#    the explicitly named compatibility job in main.yml.
+test_release_reference_uses_clang() {
+  workflow="${HERE}/../.github/workflows/release.yml"
+  if [ "$(count_lines_with 'bazel build --config=clang --config=xff_docs //xff/cli:xff_reference_gen' "${workflow}")" -ne 1 ]; then
+    fail "release workflow: reference generation must build exactly once with Clang"
+  fi
+}
+
 test_guard_rejects_mismatched_tag
 test_guard_rejects_nonversion_tag
 test_happy_path_stamps_and_emits_notes
+test_release_reference_uses_clang
 
 if [ "${FAILED}" -ne 0 ]; then
   echo "release_prep_test: FAILED" >&2
