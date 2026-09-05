@@ -85,6 +85,18 @@ class ClangTidyRunnerTest(unittest.TestCase):
         self.assertIsNotNone(process.poll())
         self.assertFalse(registry.add(process))
 
+    def test_extra_arguments_are_forwarded(self):
+        args = clang_tidy_runner.parse_args(
+            [
+                "--clang-tidy=clang-tidy",
+                "--compile-database=.",
+                "--output=diagnostics.txt",
+                "--test-disabled-checks=-example",
+                "--extra-arg-before=-isystem/libcxx",
+            ]
+        )
+        self.assertEqual(args.extra_arg_before, ["-isystem/libcxx"])
+
 
 if __name__ == "__main__":
     unittest.main()

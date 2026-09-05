@@ -76,10 +76,12 @@ def run_task(
     clang_tidy: str,
     compile_database: str,
     registry: ProcessRegistry,
+    extra_args: Sequence[str],
 ) -> Result:
     command = [clang_tidy, "--quiet", "--header-filter=(^|/)mbo/"]
     if task.checks:
         command.append(f"--checks={task.checks}")
+    command.extend(extra_args)
     command.extend(["-p", compile_database, task.path])
     started = time.monotonic()
     process = subprocess.Popen(
@@ -114,6 +116,7 @@ def run_all(
     jobs: int,
     output_path: str,
     stream: IO[str] = sys.stdout,
+    extra_args: Sequence[str] = (),
 ) -> int:
     total = len(tasks)
     if total == 0:
@@ -139,7 +142,7 @@ def run_all(
             with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
                 futures = {
                     executor.submit(
-                        run_task, task, clang_tidy, compile_database, registry
+                        run_task, task, clang_tidy, compile_database, registry, extra_args
                     ): task
                     for task in tasks
                 }
@@ -181,6 +184,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--compile-database", required=True)
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--extra-arg-before", action="append", default=[])
     parser.add_argument("--source", action="append", default=[])
     parser.add_argument("--test", action="append", default=[])
     parser.add_argument("--test-disabled-checks", required=True)
@@ -193,7 +197,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         raise SystemExit("--jobs must be at least 1")
     tasks = [Task(path) for path in args.source]
     tasks.extend(Task(path, args.test_disabled_checks) for path in args.test)
-    return run_all(tasks, args.clang_tidy, args.compile_database, args.jobs, args.output)
+    extra_args = [f"--extra-arg-before={argument}" for argument in args.extra_arg_before]
+    return run_all(
+        tasks,
+        args.clang_tidy,
+        args.compile_database,
+        args.jobs,
+        args.output,
+        extra_args=extra_args,
+    )
 
 
 if __name__ == "__main__":

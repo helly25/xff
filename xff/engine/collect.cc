@@ -62,7 +62,7 @@ Visit CollectedEntry::AsVisit() const {
 
 bool Collections::Add(std::string_view name, const Visit& visit) {
   const std::size_t entry_bytes = visit.path.size() + visit.name.size() + visit.root.size();
-  if ((budget_.rows != 0 && rows_ + 1 > budget_.rows) || (budget_.bytes != 0 && bytes_ + entry_bytes > budget_.bytes)) {
+  if ((budget_.rows != 0 && rows_ >= budget_.rows) || (budget_.bytes != 0 && bytes_ + entry_bytes > budget_.bytes)) {
     overflowed_ = true;
     return false;
   }

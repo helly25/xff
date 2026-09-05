@@ -158,6 +158,7 @@ RUNNER_ARGS=(
   --output "${OUTPUT}"
   "--test-disabled-checks=${TEST_DISABLED_CHECKS}"
 )
+RUNNER_ARGS+=("${EXTRA_ARGS[@]}")
 for FILE in ${SOURCES[@]+"${SOURCES[@]}"}; do RUNNER_ARGS+=(--source "${FILE}"); done
 for FILE in ${TESTS[@]+"${TESTS[@]}"}; do RUNNER_ARGS+=(--test "${FILE}"); done
 STATUS=0
