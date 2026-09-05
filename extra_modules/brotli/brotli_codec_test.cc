@@ -240,6 +240,9 @@ TEST_F(BrotliCodecTest, DecoderRejectsEveryUnsupportedOrMalformedRfc9841Boundary
   EXPECT_THAT(
       Decode("long-chunk.tar.br", MakeFrame(payload, tar.size(), payload.size() + 64)),
       StatusIs(absl::StatusCode::kDataLoss, HasSubstr("truncated Brotli")));
+  EXPECT_THAT(
+      Decode("empty-stream.tar.br", MakeFrame("", 0)),
+      StatusIs(absl::StatusCode::kDataLoss, HasSubstr("Brotli stream")));
 
   const std::string signature(kFramingSignature);
   EXPECT_THAT(

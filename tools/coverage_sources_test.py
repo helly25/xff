@@ -167,6 +167,30 @@ class CoverageSourcesTest(unittest.TestCase):
                     workspace,
                 )
 
+    def test_excludes_explicit_source_blocks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.cc"
+            source.write_text(
+                "int covered = 1;\n"
+                "// LCOV_EXCL_START: requires process termination.\n"
+                "int unreachable = 2;\n"
+                "// LCOV_EXCL_STOP\n"
+                "int covered_too = 3;\n",
+                encoding="utf-8",
+            )
+            actual = coverage_sources.normalize_record(
+                "SF:source.cc\nDA:1,1\nDA:2,0\nDA:3,0\nDA:4,0\nDA:5,1\nLF:5\nLH:2\nend_of_record\n",
+                source,
+            )
+            self.assertIn("DA:1,1\nDA:5,1\nLF:2\nLH:2", actual)
+
+    def test_rejects_unbalanced_source_exclusion_blocks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.cc"
+            source.write_text("// LCOV_EXCL_START\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "has no LCOV_EXCL_STOP"):
+                coverage_sources.normalize_record("SF:source.cc\nDA:1,0\nend_of_record\n", source)
+
 
 if __name__ == "__main__":
     unittest.main()

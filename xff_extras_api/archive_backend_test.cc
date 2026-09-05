@@ -96,6 +96,25 @@ TEST_F(ArchiveBackendTest, WithNoRemoverAContainerCannotBeRewritten) {
       StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("without archive support")));
 }
 
+TEST_F(ArchiveBackendTest, RegistrarObjectsInstallEachOptionalArchiveCapability) {
+  const ContainerRegistrar reader{
+      "test-a",
+      [](std::string_view, std::optional<std::string_view>, MemberPathOptions) {
+        return std::make_unique<StubFileSystem>();
+      },
+      {{.name = "test", .suffixes = {".test"}}}};
+  const ContainerRemoverRegistrar remover{
+      [](std::string_view, const std::vector<std::string>&) { return absl::OkStatus(); }};
+  const ContainerPackerRegistrar packer{
+      [](std::string_view, const std::vector<PackFile>&, const PackOptions&) { return absl::OkStatus(); },
+      {"test"},
+      {}};
+
+  EXPECT_THAT(ContainerSupportAvailable(), IsTrue());
+  EXPECT_THAT(ContainerRemovalAvailable(), IsTrue());
+  EXPECT_THAT(ContainerPackingAvailable(), IsTrue());
+}
+
 TEST_F(ArchiveBackendTest, ARegisteredRemoverReceivesTheContainerAndMembersUnchanged) {
   std::string removed_from;
   std::vector<std::string> removed_members;
