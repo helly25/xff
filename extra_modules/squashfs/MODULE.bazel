@@ -34,6 +34,8 @@ http_archive(
     name = "libsqsh",
     build_file = "//:libsqsh.BUILD.bazel",
     integrity = "sha256-VRHn6phta38lOgFnwjU34yPW3qV5jdIEorfIh7bnIWY=",
+    patch_args = ["-p1"],
+    patches = ["//:libsqsh-warnings.patch"],
     strip_prefix = "sqsh-tools-1.5.2",
     urls = ["https://github.com/Gottox/sqsh-tools/archive/refs/tags/v1.5.2.tar.gz"],
 )
