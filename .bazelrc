@@ -27,7 +27,7 @@ common --features=layering_check,parse_headers --host_features=layering_check,pa
 common --define absl=1
 
 # xff is a C++23 project.
-common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
+common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23
 
 # Warnings policy: everything we control compiles with ALL warnings as errors (-Wextra and
 # -Wpedantic on top of the toolchain's -Wall), while genuinely third-party code keeps its warnings
@@ -46,6 +46,7 @@ common --cxxopt=-std=c++23 --host_cxxopt=-std=c++23 --cxxopt=-Werror
 #  - and all of it applies in the EXEC configuration too (--host_*), which had no policy at all:
 #    first-party host warnings were not errors, and external host warnings were not muted.
 common --features=external_include_paths --host_features=external_include_paths
+common --copt=-Werror --cxxopt=-Werror
 common --per_file_copt=external/.*,-external/xff_.*@-w
 common --host_per_file_copt=external/.*,-external/xff_.*@-w
 # Carve-outs, each with its reason (gcc quietly ignores the -Wno- spellings it lacks on a clean
@@ -58,7 +59,7 @@ common --host_per_file_copt=external/.*,-external/xff_.*@-w
 common --per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 common --per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 # The same bar in the exec configuration: a build tool is our code too, and -Werror there was absent.
-common --host_cxxopt=-Werror
+common --host_copt=-Werror --host_cxxopt=-Werror
 common --host_per_file_copt=.*,-external/.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 common --host_per_file_copt=external/xff_.*@-Wextra,-Wpedantic,-Wno-nullability-extension,-Wno-missing-field-initializers,-Wno-missing-designated-field-initializers
 

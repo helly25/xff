@@ -175,22 +175,20 @@ jobs:
       - name: Mount Bazel caches
         uses: actions/cache@v6
         with:
-          path: |
-            ~/.cache/bazel-disk
-            ~/.cache/bazel-repo
-          key: bazel-release-${{ matrix.os }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
+          path: ~/.cache/bazel-disk
+          key: bazel-release-clang-${{ matrix.os }}-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}
           restore-keys: |
-            bazel-release-${{ matrix.os }}-
-            bazel-${{ matrix.os }}-default-
+            bazel-release-clang-${{ matrix.os }}-
+            bazel-disk-${{ matrix.os }}-default-
       # Stamp the tag version into MODULE.bazel + main.cc and verify consistency
       # (discard the notes it prints; the release job re-derives them).
       - name: Stamp version + verify
         run: tools/release_prep.sh "${RELEASE_TAG}" >/dev/null
       - name: Build lean + full binaries
         run: |
-          bazel build -c opt //xff/cli:xff \
+          bazel build -c opt --config=clang //xff/cli:xff \
             --disk_cache="${HOME}/.cache/bazel-disk" --repository_cache="${HOME}/.cache/bazel-repo"
-          bazel build -c opt --config=xff_full //xff/cli:xff_full \
+          bazel build -c opt --config=clang --config=xff_full //xff/cli:xff_full \
             --disk_cache="${HOME}/.cache/bazel-disk" --repository_cache="${HOME}/.cache/bazel-repo"
       - name: Stage artifacts
         env:
@@ -198,8 +196,8 @@ jobs:
         run: |
           arch="$(uname -m)"
           mkdir -p dist
-          lean="$(bazel cquery -c opt --output=files //xff/cli:xff 2>/dev/null)"
-          full="$(bazel cquery -c opt --config=xff_full --output=files //xff/cli:xff_full 2>/dev/null)"
+          lean="$(bazel cquery -c opt --config=clang --output=files //xff/cli:xff 2>/dev/null)"
+          full="$(bazel cquery -c opt --config=clang --config=xff_full --output=files //xff/cli:xff_full 2>/dev/null)"
           install -m 0755 "${lean}" "dist/xff-${PLATFORM}-${arch}"
           install -m 0755 "${full}" "dist/xff_full-${PLATFORM}-${arch}"
       - uses: actions/upload-artifact@v7
