@@ -3,6 +3,10 @@
 
 # 0.4.0
 
+- Check in formatter-clean C++ mirrors of embedded license bodies and verify each one against its
+  authoritative license text with Bazel, giving every platform and build configuration the same
+  source path while retaining deterministic regeneration checks.
+
 ## Help and documentation
 
 - Add `--help=full:html`, a standalone semantic HTML5 rendering of the complete generated reference
