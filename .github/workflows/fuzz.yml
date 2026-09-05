@@ -4,7 +4,7 @@ on:
   schedule:
     # Weekly sustained mutation without delaying every merge and release.
     - cron: "17 3 * * 0"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   group: deep-fuzz
