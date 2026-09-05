@@ -444,6 +444,7 @@ jobs:
   clang-tidy:
     needs: [pre-commit, trunk]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       # actions:write for the cache-cleanup step (`gh cache delete`); the workflow default
       # (read-all) stays in force for every other job.
@@ -453,42 +454,40 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history so a branch can diff against main to pick changed sources
-      - uses: bazelbuild/setup-bazelisk@v3
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
       - name: Select the scope to lint
-        # clang-tidy is roughly one translation unit per ~50s, so on a branch lint only the sources
-        # changed against main; on main lint the whole tree. Header and build metadata changes trigger a full sweep.
-        # findings in the sources that include it, none of which are in the branch's changed set - the
-        # post-merge run on main is what catches those.
+        # Do this before toolchain/cache setup: a documentation, workflow, or Python-only change has
+        # no C++ translation units to lint and must not pay the compile-database cost. Headers remain
+        # in the input; clang_tidy_scope.py follows quoted includes to their dependent translation
+        # units after the database is generated.
         run: |
           set -euo pipefail
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
-            echo "CLANG_TIDY_SCOPE=--all-files" >>"${GITHUB_ENV}"
-            git ls-files -- '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' >.clang-tidy-inputs
-            echo "Linting the whole tree (on main)."
+            BASE_REF="HEAD^"
           else
             git fetch --no-tags --quiet origin main
-            WIDE_CHANGES="$(git diff --name-only origin/main...HEAD -- \
-              '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' \
-              '.github/workflows/main.yml' '.pre-commit-config.yaml' 'tools/clang_tidy.sh' \
-              'tools/clang_tidy_compdb.py' 'tools/clang_tidy_runner.py' 'tools/clang_tidy_scope.py')"
-            if [ -n "${WIDE_CHANGES}" ]; then
-              echo "CLANG_TIDY_SCOPE=--all-files" >>"${GITHUB_ENV}"
-              git ls-files -- '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' >.clang-tidy-inputs
-              echo "Linting the whole tree because compilation-wide files changed:"
-              echo "${WIDE_CHANGES}" | sed 's/^/  /'
-            else
-              echo "CLANG_TIDY_SCOPE=--from-ref origin/main --to-ref HEAD" >>"${GITHUB_ENV}"
-              git diff --name-only origin/main...HEAD -- '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' >.clang-tidy-inputs
-              echo "Linting translation units changed against origin/main:"
-              git diff --name-only origin/main...HEAD -- \
-                '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' '*.bzl' |
-                sed 's/^/  /'
-            fi
+            BASE_REF="origin/main"
           fi
+          git diff --name-only "${BASE_REF}"...HEAD -- \
+            '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' '*.inc' '*.ipp' '*.h.in' \
+            >.clang-tidy-inputs
+          if [ -s .clang-tidy-inputs ]; then
+            echo "CLANG_TIDY_ENABLED=true" >>"${GITHUB_ENV}"
+            echo "CLANG_TIDY_SCOPE=affected translation units" >>"${GITHUB_ENV}"
+            echo "Linting translation units affected by:"
+            sed 's/^/  /' .clang-tidy-inputs
+          else
+            echo "CLANG_TIDY_ENABLED=false" >>"${GITHUB_ENV}"
+            echo "CLANG_TIDY_SCOPE=none" >>"${GITHUB_ENV}"
+            echo "No C++ source or header changed; clang-tidy is not required."
+          fi
+      - uses: bazelbuild/setup-bazelisk@v3
+        if: env.CLANG_TIDY_ENABLED == 'true'
+      - uses: actions/setup-python@v7
+        if: env.CLANG_TIDY_ENABLED == 'true'
+        with:
+          python-version: "3.13"
       - name: Restore the Bazel disk cache
+        if: env.CLANG_TIDY_ENABLED == 'true'
         # SPLIT restore/save on purpose. With a single actions/cache@v4 and a key that only changes
         # when MODULE.bazel.lock / .bazelversion do, the first run saves and every later run is a
         # cache HIT - and a hit never saves, so the cache freezes at that first content and every run
@@ -504,6 +503,7 @@ jobs:
             bazel-disk-clang-tidy-${{ hashFiles('MODULE.bazel.lock', '.bazelversion') }}-
             bazel-disk-clang-tidy-
       - name: Route bazel at the disk cache
+        if: env.CLANG_TIDY_ENABLED == 'true'
         # compile_commands-update.sh runs bazel internally (--config=clang-tidy); feed it the disk
         # cache via the try-import'd .bazelrc.user. LLVM re-fetches each run (deliberately not cached).
         # The GC cap keeps a rolling cache from growing without bound: GitHub allows 10 GB per repo
@@ -514,6 +514,7 @@ jobs:
             echo "common --experimental_disk_cache_gc_max_size=4G"
           } >.bazelrc.user
       - name: Generate compile_commands.json
+        if: env.CLANG_TIDY_ENABLED == 'true'
         # A gitignored local artifact, so build it here. The script extracts the DB in
         # --config=clang-tidy and names the hermetic clang driver, which is what makes the commands
         # parseable by the matching clang-tidy. It also runs `bazel build --config=clang-tidy //...`
@@ -525,7 +526,7 @@ jobs:
         # Only on main: one rolling entry per main commit (GitHub evicts LRU), while branch runs stay
         # restore-only. Branches therefore get main's warm cache without each PR writing its own copy
         # and churning the 10 GB budget. `if: always()` so a red lint still preserves the compile work.
-        if: always() && github.ref == 'refs/heads/main'
+        if: always() && env.CLANG_TIDY_ENABLED == 'true' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@v6
         with:
           path: ~/.cache/bazel-disk
@@ -537,7 +538,7 @@ jobs:
         # useful fallback: prefix restore chooses the newest match and does not retry an older cache
         # after a restore failure. Adopted from mboworks/mbo's cleanup step (theirs is ref-scoped;
         # this key is main-only so the bare prefix is the scope).
-        if: always() && github.ref == 'refs/heads/main'
+        if: always() && env.CLANG_TIDY_ENABLED == 'true' && github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
           stale=$(gh cache list --limit 250 --json id,key,createdAt             --jq 'map(select(.key|startswith("bazel-disk-clang-tidy-")))|sort_by(.createdAt)|.[:-1]|.[].id')
@@ -549,6 +550,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
       - name: Summarize the compile DB
+        if: env.CLANG_TIDY_ENABLED == 'true'
         run: |
           set -euo pipefail
           STATS="$(python3 -c '
@@ -569,6 +571,7 @@ jobs:
             echo "| Lint scope | \`${CLANG_TIDY_SCOPE}\` |"
           } >>"${GITHUB_STEP_SUMMARY}"
       - name: Run clang-tidy with progress
+        if: env.CLANG_TIDY_ENABLED == 'true'
         # Invoke the script directly so parallel per-file progress streams live in CI output.
         run: |
           set -euo pipefail

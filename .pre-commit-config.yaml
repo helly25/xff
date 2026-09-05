@@ -448,7 +448,8 @@ repos:
       - id: clang-tidy
         name: clang-tidy (opt-in locally; gated by the CI clang-tidy job)
         description: |
-          Runs clang-tidy over the given C++ sources via tools/clang_tidy.sh, a report-only
+          Runs clang-tidy over the given C++ sources and header-dependent translation units via
+          tools/clang_tidy.sh, a report-only
           pass (no --fix, so it never rewrites the tree). It needs a compile_commands.json (a
           gitignored local artifact; build it with ./compile_commands-update.sh) and a hermetic
           clang-tidy (>= clang-22 for this C++23 codebase); it SKIPS cleanly when either is
