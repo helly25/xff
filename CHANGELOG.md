@@ -7,8 +7,6 @@
   authoritative license text with Bazel, giving every platform and build configuration the same
   source path while retaining deterministic regeneration checks.
 
-## Help and documentation
-
 - Add `--help=full:html`, a standalone semantic HTML5 rendering of the complete generated reference
   with responsive styling, dark-mode support, stable anchors, and no scripts or external assets.
   `--help=full:markdown` generates the Markdown form; `long` aliases `full`, and `--man` remains the
@@ -17,16 +15,12 @@
 
 # 0.3.1
 
-## Project
-
 - Publish GitHub build-provenance attestations for every release binary, and link each release to
   its retained production coverage report and versioned `XFF.md` reference on MBO Works Pages.
 - Derive release coverage instrumentation from the extras registry so every enabled extension is
   measured automatically rather than depending on a manually maintained filter.
 
 # 0.3.0
-
-## Project
 
 - Transfer the repository to `mboworks/xff`, rename the root Bazel module to
   `mboworks_xff`, move coverage publishing to MBO Works Pages, and adopt the
@@ -38,8 +32,6 @@
   the release helper no longer arms them for automatic merging.
 - Add a non-publishing `--dry-run` mode to the release helper so its clean-main,
   version, tag, and archive checks can be verified before creating a signed tag.
-
-## Matching
 
 - Add `--compare[=status|diff] LEFT RIGHT` tree comparison. It applies each repository's
   `.gitignore` rules independently, skips VCS metadata, and compares text and binary files byte for
@@ -84,8 +76,6 @@
   comparable at the same quality threshold and predicate order does not choose the ranking accidentally.
   `--sort=score` rejects mixed models or thresholds rather than silently choosing between absolute similarity and
   distance above each matcher-specific threshold.
-
-## Archives
 
 - Add the removable `@xff_asar` reader for Electron application archives. It exposes packed files,
   external `.asar.unpacked` members, directories, and links through the ordinary archive VFS; validates
@@ -159,8 +149,6 @@
 - A whole-file-compressed phar (`.phar.gz`, `.phar.bz2`) shows its members: the container is
   decompressed first and then offered to the readers again, so what is inside decides.
 
-## Internal
-
 - `--//xff:xff_all` turns on every composable extra at once. Each extra links when its own
   flag or that one is set, so `--config=xff_docs` (which the committed reference is generated
   from, and which must document the full surface) is a single line instead of one per extra
@@ -178,8 +166,6 @@ Sharded-file awareness, hash verification, and a help system that is generated e
 end from one source of truth. The complete, always-current reference is
 [XFF.md](XFF.md).
 
-## Sharded files
-
 A sharded set (`data-000-of-003`, `data-001-of-003`, ...) is one logical file, and xff
 can now treat it that way instead of listing every shard.
 
@@ -196,8 +182,6 @@ can now treat it that way instead of listing every shard.
 - `{shard}` renders the number of shards in the set, and the size / statistics fields
   aggregate across the whole set, so `--summary` and `--histogram` count logical files.
 
-## Hashing and verification
-
 - `-hasheq EXPECTED` is true when the file's digest equals EXPECTED, a `{field}` template
   rendered per entry. `-hasheq {def.SUMS}` checks a manifest value and
   `! -hasheq {def.SUMS}` selects drift or corruption. `-hasheq:ALGO[/ENCODING]` shares the
@@ -205,16 +189,12 @@ can now treat it that way instead of listing every shard.
 - `--summary=hash` groups matches by digest, so identical files collapse into one bucket
   and the count column reads as a duplicate report.
 
-## Time formats
-
 - `--time-zone-suffix=auto|always|never` controls whether a time preset renders its
   trailing zone offset. Formats whose zone is part of their identity (`zulu`,
   `zulu-dense`, `asn1z`) always keep their `Z`.
 - ASN.1 `GeneralizedTime` presets: `asn1` (also spelled `generalizedtime`) is
   `YYYYMMDDHHMMSS` in local time with an optional offset, and `asn1z` is the UTC form
   with a mandatory `Z`.
-
-## Help and documentation
 
 - `--help`, `--help=TOPIC`, `--man` and `--markdown` are now rendered from a single help
   document built out of the flag and expression registries, so they cannot drift from
@@ -229,13 +209,9 @@ can now treat it that way instead of listing every shard.
   and never the file listing; `--man` is formatted through a roff formatter first, so it
   reads like `man xff`.
 
-## Fixes
-
 - `--summary` no longer prints a size column when nothing size-worthy was aggregated: a
   count-only summary now reports just the count.
 - A topic's flags are no longer listed twice in the full reference.
-
-## Internal
 
 - Sanitizer and lint coverage grew: clang-tidy runs as a hard CI gate over the whole
   tree, and MemorySanitizer joins AddressSanitizer and ThreadSanitizer on Linux (built
