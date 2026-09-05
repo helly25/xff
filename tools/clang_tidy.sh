@@ -16,8 +16,9 @@
 # limitations under the License.
 
 # Run clang-tidy as an enforcing, report-only pass over the affected compilation
-# scope. Header, generated-header, and .bzl changes are promoted to all first-party
-# translation units because they can affect sources that did not themselves change.
+# scope. Header changes select the first-party translation units that include them,
+# including through other project headers, rather than promoting every header to a
+# repository-wide sweep.
 #
 # clang-tidy resolution prefers the hermetic toolchains_llvm binary (so it matches
 # the compile DB's clang-22 flags and understands C++23), then a versioned system
