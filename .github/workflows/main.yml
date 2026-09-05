@@ -21,7 +21,7 @@ permissions: read-all
 
 jobs:
   test:
-    name: ${{ matrix.os }} / ${{ matrix.config.name }}
+    name: ${{ matrix.config.name == 'asan' && 'asan' || format('test ({0})', matrix.os) }}
     # Gate the heavy matrix behind the fast pre-flight checks (lint + the XFF.md drift guard), so a
     # stale reference or a lint failure fails in minutes instead of after the full asan build.
     needs: [pre-commit, trunk]
@@ -33,14 +33,14 @@ jobs:
         config:
           - name: default
             flags: ""
-          - name: clang-asan
+          - name: asan
             flags: "--config=clang --config=asan"
         exclude:
           # asan on Linux is enough; the macOS asan cell is redundant sanitizer coverage, so drop it.
-          # This leaves: ubuntu default, ubuntu clang-asan, macos default.
+          # This leaves: ubuntu default, ubuntu asan, macos default.
           - os: macos-latest
             config:
-              name: clang-asan
+              name: asan
               flags: "--config=clang --config=asan"
     steps:
       - uses: actions/checkout@v7
@@ -66,7 +66,7 @@ jobs:
       # clang cell re-fetches LLVM each run and persists only its instrumented outputs
       # above; the non-clang cells keep their small (LLVM-free) repo cache.
       - name: Mount Bazel repo cache
-        if: matrix.config.name != 'clang-asan'
+        if: matrix.config.name != 'asan'
         uses: actions/cache@v6
         with:
           path: ~/.cache/bazel-repo
