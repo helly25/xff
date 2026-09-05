@@ -175,6 +175,35 @@ TEST_F(PharWriterTest, OpenSslSignaturesCannotBeRecomputedWithoutTheKey) {
       StatusIs(absl::StatusCode::kUnimplemented, HasSubstr("openssl or unknown")));
 }
 
+TEST_F(PharWriterTest, ADeclaredSignatureWithoutItsTrailerIsCorruption) {
+  const std::string path = CopyOfFixture("plain.phar", "missing-signature.phar");
+  std::string bytes = Read(path);
+  bytes.resize(bytes.size() - 4);
+  std::ofstream(path, std::ios::binary | std::ios::trunc)
+      .write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+  EXPECT_THAT(
+      RemovePharMembersOfFile(path, {std::string(kUtilPhp)}),
+      StatusIs(absl::StatusCode::kDataLoss, HasSubstr("no GBMB trailer")));
+}
+
+TEST_F(PharWriterTest, AnUnsignedPharNeedsNoReplacementSignature) {
+  constexpr std::uint32_t kGlobalFlagSigned = 0x00010000;
+  const std::string path = CopyOfFixture("plain.phar", "unsigned.phar");
+  std::string bytes = Read(path);
+  MBO_ASSERT_OK_AND_ASSIGN(const PharLayout layout, ParsePharLayout(bytes));
+  const std::size_t flags = layout.manifest_start + 6;
+  const std::uint32_t unsigned_flags = layout.global_flags & ~kGlobalFlagSigned;
+  for (std::size_t index = 0; index < 4; ++index) {
+    bytes[flags + index] = static_cast<char>((unsigned_flags >> (8U * index)) & 0xffU);
+  }
+  bytes.resize(layout.data_end);
+  std::ofstream(path, std::ios::binary | std::ios::trunc)
+      .write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+
+  EXPECT_THAT(RemovePharMembersOfFile(path, {std::string(kUtilPhp)}), IsOk());
+  EXPECT_THAT(ReadPharMemberOfFile(path, kReadme), IsOkAndHolds(std::string(kReadmeContent)));
+}
+
 TEST_F(PharWriterTest, APerMemberCompressedMemberSurvivesUntouched) {
   // Each member carries its own compression, so a removal must copy the survivors' STORED bytes
   // rather than re-encode them - otherwise a gz member would come back as garbage.

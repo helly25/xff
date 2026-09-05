@@ -417,6 +417,7 @@ TEST_F(PharReaderTest, ReadsAMemberWhoseDataRunsPastTheContainerAsCorruption) {
   std::string phar = MakePhar({{.name = "a.txt", .content = "0123456789"}});
   phar.resize(phar.size() - 4);
   EXPECT_THAT(ReadPharMember(phar, "a.txt"), StatusIs(absl::StatusCode::kDataLoss));
+  EXPECT_THAT(ParsePharLayout(phar), StatusIs(absl::StatusCode::kDataLoss, HasSubstr("data section is truncated")));
 }
 
 TEST_F(PharReaderTest, RejectsAnEmptyMemberNameAfterCommittingToTheManifest) {
